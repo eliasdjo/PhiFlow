@@ -11,7 +11,6 @@ from ..math import Shape, NUMPY
 from ..math._shape import spatial, channel, parse_dim_order
 from ..math._tensors import TensorStack, Tensor
 from ..math.extrapolation import Extrapolation
-from ..math.magic import slicing_dict
 
 
 class Grid(SampledField):
@@ -19,9 +18,7 @@ class Grid(SampledField):
     Base class for `CenteredGrid` and `StaggeredGrid`.
     """
 
-    def __init__(self, elements: Geometry, values: Tensor, extrapolation: float or Extrapolation, resolution: Shape or int, bounds: Box or float):
-        assert isinstance(bounds, Box)
-        assert isinstance(resolution, Shape)
+    def __init__(self, elements: Geometry, values: Tensor, extrapolation: float or Extrapolation, resolution: Shape, bounds: Box):
         if bounds.size.vector.item_names is None:
             with NUMPY:
                 bounds = bounds.shifted(math.zeros(channel(vector=spatial(values).names)))
@@ -86,7 +83,7 @@ class Grid(SampledField):
                 return self.values.shape == other.values.shape
         return bool((self.values == other.values).all)
 
-    def __getitem__(self, item) -> 'Grid':
+    def __getitem__(self, item: dict) -> 'Grid':
         raise NotImplementedError(self)
 
     @property
@@ -115,15 +112,6 @@ class Grid(SampledField):
         else:
             return f"{self.__class__.__name__}[{self.resolution}, size={self.box.size}, extrapolation={self._extrapolation}]"
 
-    def uniform_values(self):
-        """
-        Returns a uniform tensor containing `values`.
-
-        For periodic grids, which always have a uniform value tensor, `values' is returned directly.
-        If `values` is not uniform, it is padded as in `StaggeredGrid.staggered_tensor()`.
-        """
-        return self.values
-
 
 GridType = TypeVar('GridType', bound=Grid)
 
@@ -146,7 +134,7 @@ class CenteredGrid(Grid):
     def __init__(self,
                  values: Any,
                  extrapolation: Any = 0.,
-                 bounds: Box or float = None,
+                 bounds: Box = None,
                  resolution: int or Shape = None,
                  scheme: Scheme = Scheme(),
                  **resolution_: int or Tensor):
@@ -166,19 +154,20 @@ class CenteredGrid(Grid):
             extrapolation: The grid extrapolation determines the value outside the `values` tensor.
                 Allowed types: `float`, `phi.math.Tensor`, `phi.math.extrapolation.Extrapolation`.
             bounds: Physical size and location of the grid as `phi.geom.Box`.
-                If the resolution is determined through `resolution` of `values`, a `float` can be passed for `bounds` to create a unit box.
             resolution: Grid resolution as purely spatial `phi.math.Shape`.
-                If `bounds` is given as a `Box`, the resolution may be specified as an `int` to be equal along all axes.
             **resolution_: Spatial dimensions as keyword arguments. Typically either `resolution` or `spatial_dims` are specified.
         """
         if resolution is None and not resolution_:
             assert isinstance(values, math.Tensor), "Grid resolution must be specified when 'values' is not a Tensor."
             resolution = values.shape.spatial
-            bounds = _get_bounds(bounds, resolution)
+            bounds = bounds or Box(math.const_vec(0, resolution), math.wrap(resolution, channel('vector')))
             elements = GridCell(resolution, bounds)
         else:
-            resolution = _get_resolution(resolution, resolution_, bounds)
-            bounds = _get_bounds(bounds, resolution)
+            if isinstance(resolution, int):
+                assert not resolution_, "Cannot specify keyword resolution and integer resolution at the same time."
+                resolution = spatial(**{dim: resolution for dim in bounds.size.shape.get_item_names('vector')})
+            resolution = (resolution or math.EMPTY_SHAPE) & spatial(**resolution_)
+            bounds = bounds or Box(math.const_vec(0, resolution), math.wrap(resolution, channel(vector=resolution.names)))
             elements = GridCell(resolution, bounds)
             if isinstance(values, math.Tensor):
                 values = math.expand(values, resolution)
@@ -197,10 +186,7 @@ class CenteredGrid(Grid):
         assert resolution.spatial_rank == bounds.spatial_rank, f"Resolution {resolution} does not match bounds {bounds}"
         Grid.__init__(self, elements, values, extrapolation, values.shape.spatial, bounds)
 
-    def __getitem__(self, item):
-        item = slicing_dict(self, item)
-        if not item:
-            return self
+    def __getitem__(self, item: dict):
         values = self._values[item]
         extrapolation = self._extrapolation[item]
         keep_dims = [dim for dim in self.resolution.names if dim not in item or not isinstance(item[dim], int)]
@@ -283,8 +269,8 @@ class StaggeredGrid(Grid):
     def __init__(self,
                  values: Any,
                  extrapolation: float or Extrapolation = 0,
-                 bounds: Box or float = None,
-                 resolution: Shape or int = None,
+                 bounds: Box = None,
+                 resolution: Shape = None,
                  scheme: Scheme = Scheme(),
                  **resolution_: int or Tensor):
         """
@@ -304,36 +290,29 @@ class StaggeredGrid(Grid):
 
             extrapolation: The grid extrapolation determines the value outside the `values` tensor.
                 Allowed types: `float`, `phi.math.Tensor`, `phi.math.extrapolation.Extrapolation`.
-            bounds: Physical size and location of the grid as `phi.geom.Box`.
-                If the resolution is determined through `resolution` of `values`, a `float` can be passed for `bounds` to create a unit box.
+            bounds: Physical size and location of the grid.
             resolution: Grid resolution as purely spatial `phi.math.Shape`.
-                If `bounds` is given as a `Box`, the resolution may be specified as an `int` to be equal along all axes.
             **resolution_: Spatial dimensions as keyword arguments. Typically either `resolution` or `spatial_dims` are specified.
         """
         extrapolation = as_extrapolation(extrapolation)
         if resolution is None and not resolution_:
             assert isinstance(values, Tensor), "Grid resolution must be specified when 'values' is not a Tensor."
-            if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in spatial(values).names):  # non-uniform values required
-                if values.shape.is_uniform:
-                    values = unstack_staggered_tensor(values, extrapolation)
-                resolution = resolution_from_staggered_tensor(values, extrapolation)
-            else:
-                resolution = spatial(values)
-            bounds = _get_bounds(bounds, resolution)
+            any_dim = values.shape.spatial.names[0]
+            x = values.vector[any_dim]
+            ext_lower, ext_upper = extrapolation.valid_outer_faces(any_dim)
+            delta = int(ext_lower) + int(ext_upper) - 1
+            resolution = x.shape.spatial._replace_single_size(any_dim, x.shape.get_size(any_dim) - delta)
             bounds = bounds or Box(math.const_vec(0, resolution), math.wrap(resolution, channel('vector')))
             elements = staggered_elements(resolution, bounds, extrapolation)
         else:
-            resolution = _get_resolution(resolution, resolution_, bounds)
-            bounds = _get_bounds(bounds, resolution)
+            if isinstance(resolution, int):
+                assert not resolution_, "Cannot specify keyword resolution and integer resolution at the same time."
+                resolution = spatial(**{dim: resolution for dim in bounds.size.shape.get_item_names('vector')})
+            resolution = (resolution or math.EMPTY_SHAPE) & spatial(**resolution_)
+            bounds = bounds or Box(math.const_vec(0, resolution), math.wrap(resolution, channel(vector=resolution)))
             elements = staggered_elements(resolution, bounds, extrapolation)
             if isinstance(values, math.Tensor):
-                if not spatial(values):
-                    values = expand_staggered(values, resolution, extrapolation)
-                if not all(extrapolation.valid_outer_faces(d)[0] != extrapolation.valid_outer_faces(d)[1] for d in resolution.names):  # non-uniform values required
-                    if values.shape.is_uniform:
-                        values = unstack_staggered_tensor(values, extrapolation)
-                    else:  # Keep dim order from data and check it matches resolution
-                        assert set(resolution_from_staggered_tensor(values, extrapolation)) == set(resolution), f"Failed to create StaggeredGrid: values {values.shape} do not match given resolution {resolution} for extrapolation {extrapolation}. See https://tum-pbs.github.io/PhiFlow/Staggered_Grids.html"
+                values = expand_staggered(values, resolution, extrapolation)
             elif isinstance(values, Geometry):
                 values = reduce_sample(HardGeometryMask(values), elements, scheme=scheme)
             elif isinstance(values, Field):
@@ -393,10 +372,7 @@ class StaggeredGrid(Grid):
         """
         return CenteredGrid(self, resolution=self.resolution, bounds=self.bounds, extrapolation=self.extrapolation)
 
-    def __getitem__(self, item):
-        item = slicing_dict(self, item)
-        if not item:
-            return self
+    def __getitem__(self, item: dict):
         values = self._values[{dim: sel for dim, sel in item.items() if dim not in self.shape.spatial}]
         for dim, sel in item.items():
             if dim in self.shape.spatial:
@@ -426,12 +402,6 @@ class StaggeredGrid(Grid):
             else:
                 assert isinstance(selection, slice) and not selection.start and not selection.stop
         return StaggeredGrid(values, bounds=bounds, extrapolation=extrapolation)
-
-    def uniform_values(self):
-        if self.values.shape.is_uniform:
-            return self.values
-        else:
-            return self.staggered_tensor()
 
     def staggered_tensor(self) -> Tensor:
         """
@@ -491,15 +461,6 @@ def expand_staggered(values: Tensor, resolution: Shape, extrapolation: Extrapola
     return math.stack(tensors, channel(vector=resolution.names))
 
 
-def resolution_from_staggered_tensor(values: Tensor, extrapolation: Extrapolation):
-    any_dim = values.shape.spatial.names[0]
-    x = values.vector[any_dim]
-    ext_lower, ext_upper = extrapolation.valid_outer_faces(any_dim)
-    delta = int(ext_lower) + int(ext_upper) - 1
-    resolution = x.shape.spatial._replace_single_size(any_dim, x.shape.get_size(any_dim) - delta)
-    return resolution
-
-
 def _sample_function(f, elements: Geometry):
     import inspect
     try:
@@ -508,15 +469,12 @@ def _sample_function(f, elements: Geometry):
         dims = elements.shape.get_size('vector')
         names_match = tuple(params.keys())[:dims] == elements.shape.get_item_names('vector')
         num_positional = 0
-        has_varargs = False
         for n, p in params.items():
             if p.default is p.empty:
                 num_positional += 1
-            if p.kind == 2:  # _ParameterKind.VAR_POSITIONAL
-                has_varargs = True
         assert num_positional <= dims, f"Cannot sample {f.__name__}{signature} on physical space {elements.shape.get_item_names('vector')}"
-        pass_varargs = has_varargs or names_match or num_positional > 1 or num_positional == dims
-        if num_positional > 1 and not has_varargs:
+        pass_varargs = names_match or num_positional > 1 or num_positional == dims
+        if num_positional > 1:
             assert names_match, f"Positional arguments of {f.__name__}{signature} should match physical space {elements.shape.get_item_names('vector')}"
     except ValueError as err:  # signature not available for all functions
         pass_varargs = False
@@ -526,26 +484,3 @@ def _sample_function(f, elements: Geometry):
         values = math.map_s2b(f)(elements.center)
     assert isinstance(values, math.Tensor), f"values function must return a Tensor but returned {type(values)}"
     return values
-
-
-def _get_bounds(bounds: Box or float or None, resolution: Shape):
-    if bounds is None:
-        return Box(math.const_vec(0, resolution), math.wrap(resolution, channel(vector=resolution.names)))
-    if isinstance(bounds, Box):
-        assert set(bounds.vector.item_names) == set(resolution.names), f"bounds dimensions {bounds.vector.item_names} must match resolution {resolution}"
-        return bounds
-    if isinstance(bounds, (int, float)):
-        return Box(math.const_vec(0, resolution), math.const_vec(bounds, resolution))
-    raise ValueError(f"bounds must be a Box, float or None but got {type(bounds).__name__}")
-
-
-def _get_resolution(resolution: Shape, resolution_: dict, bounds: Box):
-    assert 'boundaries' not in resolution_, "'boundaries' is not a valid grid argument. Use 'extrapolation' instead, passing a value or math.extrapolation.Extrapolation object. See https://tum-pbs.github.io/PhiFlow/phi/math/extrapolation.html"
-    if isinstance(resolution, int):
-        assert not resolution_, "Cannot specify keyword resolution and integer resolution at the same time."
-        resolution = spatial(**{dim: resolution for dim in bounds.size.shape.get_item_names('vector')})
-    try:
-        resolution_ = spatial(**resolution_)
-    except AssertionError as err:
-        raise ValueError(f"Invalid grid resolution: {', '.join(f'{dim}={size}' for dim, size in resolution_.items())}. Pass an int for all sizes.") from err
-    return (resolution or math.EMPTY_SHAPE) & resolution_

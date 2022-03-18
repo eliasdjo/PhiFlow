@@ -66,8 +66,6 @@ def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2)) -> GridTy
     padded_components = [pad(field, {dim: base_widths}) for dim in axes_names]
 
     shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for padded_component, dim in zip(padded_components, axes_names)]
-    # result_components = [sum([shift.with_values(shift.values._cached * value) for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim]**2 for shifted_component, dim in zip(shifted_components, axes_names)]
-    # print(shifted_components[0][0].values._inner*1) #TODO ED1 better workaround?
     result_components = [sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim]**2 for shifted_component, dim in zip(shifted_components, axes_names)]
 
 
@@ -164,11 +162,11 @@ def spatial_gradient(field: CenteredGrid,
 
     if type == CenteredGrid:
         result = stack(result_components, stack_dim)
-        # result.with_values(result.values._cache()) # ToDO ED2
+        result.with_values(result.values._cache()) # ToDO
     else:
         result = StaggeredGrid(math.stack([component.values for component in result_components], channel('vector')),
                                bounds=field.bounds, extrapolation=gradient_extrapolation)
-        # result.with_values(result.values._cache()) # nötig um result.values von TensorStack in Tensor zu transformieren
+        result.with_values(result.values._cache()) # nötig um result.values von TensorStack in Tensor zu transformieren
 
     result = result.with_extrapolation(gradient_extrapolation)
 

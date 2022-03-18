@@ -11,6 +11,8 @@ from phi import math
 from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample, \
     spatial_gradient, spatial_gradient, unstack, stack, CenteredGrid, StaggeredGrid
 from phi.field._field import FieldType
+from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample, \
+    spatial_gradient, spatial_gradient, unstack, stack, CenteredGrid, StaggeredGrid
 from phi.field._field_math import GridType
 from phi.field.numerical import Scheme
 from phi.geom import Geometry
@@ -66,7 +68,6 @@ def finite_rk4(elements: Geometry, velocity: Grid, dt: float, v0: math.Tensor = 
     vel_rk4 = (1 / 6.) * (v0 + 2 * (vel_half + vel_half2) + vel_full)
     vel_nan = math.where(math.is_finite(vel_rk4), vel_rk4, v0)
     return elements.shifted(dt * vel_nan)
-
 
 
 def advect(field: SampledField,
