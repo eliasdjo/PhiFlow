@@ -127,7 +127,8 @@ class Domain:
     def grid(self,
              value: Field or Tensor or Number or Geometry or callable = 0.,
              type: type = CenteredGrid,
-             extrapolation: math.Extrapolation = 'scalar') -> CenteredGrid or StaggeredGrid:
+             extrapolation: math.Extrapolation = 'scalar',
+             scheme: bool = False) -> CenteredGrid or StaggeredGrid:
         """
         Creates a grid matching the resolution and bounds of the domain.
         The grid is created from the given `value` which must be one of the following:
@@ -147,11 +148,12 @@ class Domain:
             Grid of specified type
         """
         extrapolation = extrapolation if isinstance(extrapolation, math.Extrapolation) else self.boundaries[extrapolation]
-        return type(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation)
+        return type(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation, scheme=scheme)
 
     def scalar_grid(self,
                     value: Field or Tensor or Number or Geometry or callable = 0.,
-                    extrapolation: str or math.Extrapolation = 'scalar') -> CenteredGrid:
+                    extrapolation: str or math.Extrapolation = 'scalar',
+                    scheme: bool = False) -> CenteredGrid:
         """
         Creates a scalar grid matching the resolution and bounds of the domain.
         The grid is created from the given `value` which must be one of the following:
@@ -185,14 +187,15 @@ class Domain:
             except AssertionError:
                 pass
             value = math.wrap(value)
-        result = CenteredGrid(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation)
+        result = CenteredGrid(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation, scheme=scheme)
         assert result.shape.channel_rank == 0
         return result
 
     def vector_grid(self,
                     value: Field or Tensor or Number or Geometry or callable = 0.,
                     type: type = CenteredGrid,
-                    extrapolation: math.Extrapolation or str = 'vector') -> CenteredGrid or StaggeredGrid:
+                    extrapolation: math.Extrapolation or str = 'vector',
+                    scheme: bool = False) -> CenteredGrid or StaggeredGrid:
         """
         Creates a vector grid matching the resolution and bounds of the domain.
         The grid is created from the given `value` which must be one of the following:
@@ -214,7 +217,7 @@ class Domain:
           Grid of specified type
         """
         extrapolation = extrapolation if isinstance(extrapolation, math.Extrapolation) else self.boundaries[extrapolation]
-        result = type(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation)
+        result = type(value, resolution=self.resolution, bounds=self.bounds, extrapolation=extrapolation, scheme=scheme)
         if result.shape.channel_rank == 0:
             result = result.with_values(math.expand(result.values, channel(vector=self.rank)))
         else:
@@ -223,7 +226,8 @@ class Domain:
 
     def staggered_grid(self,
                        value: Field or Tensor or Number or Geometry or callable = 0.,
-                       extrapolation: math.Extrapolation or str = 'vector') -> StaggeredGrid:
+                       extrapolation: math.Extrapolation or str = 'vector',
+                        scheme: bool = False) -> StaggeredGrid:
         """
         Creates a staggered grid matching the resolution and bounds of the domain.
         This is equal to calling `vector_grid()` with `type=StaggeredGrid`.
@@ -245,16 +249,17 @@ class Domain:
         Returns:
           Grid of specified type
         """
-        return self.vector_grid(value, type=StaggeredGrid, extrapolation=extrapolation)
+        return self.vector_grid(value, type=StaggeredGrid, extrapolation=extrapolation, scheme=scheme)
 
     def vector_potential(self,
                          value: Field or Tensor or Number or Geometry or callable = 0.,
                          extrapolation: str or math.Extrapolation = 'scalar',
-                         curl_type=CenteredGrid):
+                         curl_type=CenteredGrid,
+                         scheme: bool = False):
         if self.rank == 2 and curl_type == StaggeredGrid:
             pot_bounds = Box(self.bounds.lower - 0.5 * self.dx, self.bounds.upper + 0.5 * self.dx)
             alt_domain = Domain(self.boundaries, self.resolution + 1, bounds=pot_bounds)
-            return alt_domain.scalar_grid(value, extrapolation=extrapolation)
+            return alt_domain.scalar_grid(value, extrapolation=extrapolation, scheme=scheme)
         raise NotImplementedError()
 
     def accessible_mask(self, not_accessible: tuple or list, type: type = CenteredGrid, extrapolation='accessible') -> CenteredGrid or StaggeredGrid:

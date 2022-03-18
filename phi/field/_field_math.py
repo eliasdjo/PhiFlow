@@ -32,7 +32,7 @@ def bake_extrapolation(grid: GridType) -> GridType:
         for dim, value in zip(grid.shape.spatial.names, values):
             lower, upper = grid.extrapolation.valid_outer_faces(dim)
             padded.append(math.pad(value, {dim: (0 if lower else 1, 0 if upper else 1)}, grid.extrapolation))
-        return StaggeredGrid(math.stack(padded, channel('vector')), bounds=grid.bounds, extrapolation=math.extrapolation.NONE)
+        return StaggeredGrid(math.stack(padded, channel('vector')), bounds=grid.bounds, extrapolation=math.extrapolation.NONE, scheme=grid.scheme)
     elif isinstance(grid, CenteredGrid):
         return pad(grid, 1).with_extrapolation(math.extrapolation.NONE)
     else:
@@ -44,6 +44,17 @@ def laplace(field: GridType, axes=None) -> GridType:
     result = field._op1(lambda tensor: math.laplace(tensor, dx=field.dx, padding=field.extrapolation, dims=axes))
     return result
 
+
+def laplace_laiz(field: GridType, axes=None) -> GridType:
+    """ Finite-difference laplace operator for Grids. See `phi.math.laplace()`. """
+    result = field._op1(lambda tensor: math.laplace_laiz(tensor, dx=field.dx, padding=field.extrapolation, dims=axes))
+    return result
+
+
+def laplace_kamp(field: GridType, axes=None) -> GridType:
+    """ Finite-difference laplace operator for Grids. See `phi.math.laplace()`. """
+    result = field._op1(lambda tensor: math.laplace_kamp(tensor, dx=field.dx, padding=field.extrapolation, dims=axes))
+    return result
 
 def spatial_gradient(field: CenteredGrid,
                      extrapolation: math.Extrapolation = None,
@@ -72,10 +83,57 @@ def spatial_gradient(field: CenteredGrid,
         extrapolation = field.extrapolation.spatial_gradient()
     if type == CenteredGrid:
         values = math.spatial_gradient(field.values, field.dx.vector.as_channel(name=stack_dim.name), difference='central', padding=field.extrapolation, stack_dim=stack_dim)
-        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation)
+        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
     elif type == StaggeredGrid:
         assert stack_dim.name == 'vector'
         return stagger(field, lambda lower, upper: (upper - lower) / field.dx, extrapolation)
+    raise NotImplementedError(f"{type(field)} not supported. Only CenteredGrid and StaggeredGrid allowed.")
+
+def spatial_gradient_laiz(field: CenteredGrid,
+                          extrapolation: math.Extrapolation = None,
+                          type: type = CenteredGrid,
+                          stack_dim: Shape = channel('vector')):
+
+    assert isinstance(field, Grid)
+    if extrapolation is None:
+        extrapolation = field.extrapolation.spatial_gradient()
+    if type == CenteredGrid:
+        values = math.spatial_gradient_laiz(field.values, field.dx.vector.as_channel(name=stack_dim.name),
+                                            padding=field.extrapolation, stack_dim=stack_dim)
+        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
+    elif type == StaggeredGrid:  # TODO fix dis like kamp version below
+        assert stack_dim.name == 'vector'
+        raise NotImplementedError
+    raise NotImplementedError(f"{type(field)} not supported. Only CenteredGrid and StaggeredGrid allowed.")
+
+
+def spatial_gradient_kamp(field: CenteredGrid,
+                          extrapolation: math.Extrapolation = None,
+                          type: type = CenteredGrid,
+                          stack_dim: Shape = channel('vector')):
+
+    assert isinstance(field, Grid)
+    if extrapolation is None:
+        extrapolation = field.extrapolation.spatial_gradient()
+    if type == CenteredGrid:
+        values = math.spatial_gradient_kamp(field.values, field.dx.vector.as_channel(name=stack_dim.name),
+                                            padding=field.extrapolation, stack_dim=stack_dim)
+        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
+    elif type == StaggeredGrid:
+        assert stack_dim.name == 'vector'
+
+        components = []
+        for i, dim in enumerate(field.shape.spatial.names):
+            border_val = field.extrapolation.valid_outer_faces(dim)
+            padding_dict = {dim_: ((border_val[0]) + 1, (border_val[1]) + 1) if dim_ == dim else (0, 0) for dim_ in
+                            field.shape.spatial.names}
+            padded_component = pad(field.vector[dim], padding_dict)
+            comp_deriv = \
+                math.spatial_gradient_kamp_mipd(padded_component.values, dx=field.dx[i], padding=None,
+                                                dims=[dim]).gradient[0]
+            components.append(comp_deriv)
+
+        return StaggeredGrid(math.tensor(components), bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
     raise NotImplementedError(f"{type(field)} not supported. Only CenteredGrid and StaggeredGrid allowed.")
 
 
@@ -92,7 +150,7 @@ def shift(grid: CenteredGrid, offsets: tuple, stack_dim: Shape = channel('shift'
 
     """
     data = math.shift(grid.values, offsets, padding=grid.extrapolation, stack_dim=stack_dim)
-    return [CenteredGrid(data[i], bounds=grid.bounds, extrapolation=grid.extrapolation) for i in range(len(offsets))]
+    return [CenteredGrid(data[i], bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme) for i in range(len(offsets))]
 
 
 def stagger(field: CenteredGrid,
@@ -133,13 +191,13 @@ def stagger(field: CenteredGrid,
         all_upper = math.stack(all_upper, channel('vector'))
         all_lower = math.stack(all_lower, channel('vector'))
         values = face_function(all_lower, all_upper)
-        result = StaggeredGrid(values, bounds=field.bounds, extrapolation=extrapolation)
+        result = StaggeredGrid(values, bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
         assert result.shape.spatial == field.shape.spatial
         return result
     elif type == CenteredGrid:
         left, right = math.shift(field.values, (-1, 1), padding=field.extrapolation, stack_dim=channel('vector'))
         values = face_function(left, right)
-        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation)
+        return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation, scheme=field.scheme)
     else:
         raise ValueError(type)
 
@@ -166,13 +224,52 @@ def divergence(field: Grid) -> CenteredGrid:
             div_dim = math.spatial_gradient(field.values.vector[i], dx=field.dx[i], difference='forward', padding=None, dims=[dim]).gradient[0]
             components.append(div_dim)
         data = math.sum(components, dim='0')
-        return CenteredGrid(data, bounds=field.bounds, extrapolation=field.extrapolation.spatial_gradient())
+        return CenteredGrid(data, bounds=field.bounds, extrapolation=field.extrapolation.spatial_gradient(), scheme=field.scheme)
     elif isinstance(field, CenteredGrid):
         left, right = shift(field, (-1, 1), stack_dim=batch('div_'))
         grad = (right - left) / (field.dx * 2)
         components = [grad.vector[i].div_[i] for i in range(grad.div_.size)]
         result = sum(components)
         return result
+    else:
+        raise NotImplementedError(f"{type(field)} not supported. Only StaggeredGrid allowed.")
+
+
+def divergence_kamp(field: Grid) -> CenteredGrid:
+    """
+    Computes the divergence of a grid using finite differences.
+
+    This function can operate in two modes depending on the type of `field`:
+
+    * `CenteredGrid` approximates the divergence at cell centers using central differences
+    * `StaggeredGrid` exactly computes the divergence at cell centers
+
+    Args:
+        field: vector field as `CenteredGrid` or `StaggeredGrid`
+
+    Returns:
+        Divergence field as `CenteredGrid`
+    """
+    if isinstance(field, StaggeredGrid):
+        components = []
+        for i, dim in enumerate(field.shape.spatial.names):
+            border_val = field.extrapolation.valid_outer_faces(dim)
+            padding_dict = {dim_: ((not border_val[0]) + 1, (not border_val[1]) + 1) if dim_ == dim else (0, 0) for dim_ in field.shape.spatial.names}
+            padded_component = pad(field.vector[dim], padding_dict)
+            div_dim = \
+            math.spatial_gradient_kamp_mipd(padded_component.values, dx=field.dx[i], padding=None,
+                                  dims=[dim]).gradient[0]
+            components.append(div_dim)
+        data = sum(components)
+        return CenteredGrid(data, bounds=field.bounds, extrapolation=field.extrapolation.spatial_gradient(), scheme=field.scheme)
+    elif isinstance(field, CenteredGrid):
+        components = []
+        for i, dim in enumerate(field.shape.spatial.names):
+            div_dim = math.spatial_gradient_kamp(field.values.vector[i], dx=field.dx[i], padding=field.extrapolation,
+                                                 dims=[dim]).gradient[0]
+            components.append(div_dim)
+        data = sum(components)
+        return CenteredGrid(data, bounds=field.bounds, extrapolation=field.extrapolation.spatial_gradient(), scheme=field.scheme)
     else:
         raise NotImplementedError(f"{type(field)} not supported. Only StaggeredGrid allowed.")
 
@@ -185,7 +282,7 @@ def curl(field: Grid, type: type = CenteredGrid):
         grad = math.spatial_gradient(field.values, dx=field.dx, difference='forward', padding=None, stack_dim=channel('vector'))
         result = grad.vector.flip() * (1, -1)  # (d/dy, -d/dx)
         bounds = Box(field.bounds.lower + 0.5 * field.dx, field.bounds.upper - 0.5 * field.dx)  # lose 1 cell per dimension
-        return StaggeredGrid(result, bounds=bounds, extrapolation=field.extrapolation.spatial_gradient())
+        return StaggeredGrid(result, bounds=bounds, extrapolation=field.extrapolation.spatial_gradient(), scheme=field.scheme)
     raise NotImplementedError()
 
 
@@ -193,14 +290,14 @@ def fourier_laplace(grid: GridType, times=1) -> GridType:
     """ See `phi.math.fourier_laplace()` """
     assert grid.extrapolation.spatial_gradient() == math.extrapolation.PERIODIC
     values = math.fourier_laplace(grid.values, dx=grid.dx, times=times)
-    return type(grid)(values=values, bounds=grid.bounds, extrapolation=grid.extrapolation)
+    return type(grid)(values=values, bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
 
 
 def fourier_poisson(grid: GridType, times=1) -> GridType:
     """ See `phi.math.fourier_poisson()` """
     assert grid.extrapolation.spatial_gradient() == math.extrapolation.PERIODIC
     values = math.fourier_poisson(grid.values, dx=grid.dx, times=times)
-    return type(grid)(values=values, bounds=grid.bounds, extrapolation=grid.extrapolation)
+    return type(grid)(values=values, bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
 
 
 def native_call(f, *inputs, channels_last=None, channel_dim='vector', extrapolation=None) -> SampledField or math.Tensor:
@@ -294,7 +391,7 @@ def pad(grid: GridType, widths: int or tuple or list or dict) -> GridType:
         w_lower = math.wrap([w[0] for w in widths_list])
         w_upper = math.wrap([w[1] for w in widths_list])
         bounds = Box(grid.box.lower - w_lower * grid.dx, grid.box.upper + w_upper * grid.dx)
-        return type(grid)(values=data, resolution=data.shape.spatial, bounds=bounds, extrapolation=grid.extrapolation)
+        return type(grid)(values=data, resolution=data.shape.spatial, bounds=bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
     raise NotImplementedError(f"{type(grid)} not supported. Only Grid instances allowed.")
 
 
@@ -314,14 +411,14 @@ def downsample2x(grid: Grid) -> GridType:
     """
     if isinstance(grid, CenteredGrid):
         values = math.downsample2x(grid.values, grid.extrapolation)
-        return CenteredGrid(values, bounds=grid.bounds, extrapolation=grid.extrapolation)
+        return CenteredGrid(values, bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
     elif isinstance(grid, StaggeredGrid):
         values = []
         for dim, centered_grid in zip(grid.shape.spatial.names, unstack(grid, 'vector')):
             odd_discarded = centered_grid.values[{dim: slice(None, None, 2)}]
             others_interpolated = math.downsample2x(odd_discarded, grid.extrapolation, dims=grid.shape.spatial.without(dim))
             values.append(others_interpolated)
-        return StaggeredGrid(math.stack(values, channel('vector')), bounds=grid.bounds, extrapolation=grid.extrapolation)
+        return StaggeredGrid(math.stack(values, channel('vector')), bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
     else:
         raise ValueError(type(grid))
 
@@ -342,7 +439,7 @@ def upsample2x(grid: GridType) -> GridType:
     """
     if isinstance(grid, CenteredGrid):
         values = math.upsample2x(grid.values, grid.extrapolation)
-        return CenteredGrid(values, bounds=grid.bounds, extrapolation=grid.extrapolation)
+        return CenteredGrid(values, bounds=grid.bounds, extrapolation=grid.extrapolation, scheme=grid.scheme)
     elif isinstance(grid, StaggeredGrid):
         raise NotImplementedError()
     else:

@@ -4,7 +4,8 @@ Definition of Fluid, IncompressibleFlow as well as fluid-related functions.
 from typing import Tuple
 
 from phi import math, field
-from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, HardGeometryMask, CenteredGrid
+from phi.field import SoftGeometryMask, AngularVelocity, Grid, divergence, spatial_gradient, where, HardGeometryMask, CenteredGrid, \
+    divergence_kamp
 from phi.geom import union
 from ..math import extrapolation
 from ..math._tensors import copy_with
@@ -62,6 +63,43 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid)
     grad *= hard_bcs
     div = divergence(grad)
     lap = where(active, div, pressure)
+    return lap
+
+
+def make_incompressible_kamp(velocity: Grid,
+                        obstacles: tuple or list = (),
+                        solve=math.Solve('auto', 1e-5, 0, gradient_solve=math.Solve('auto', 1e-5, 1e-5))) -> Tuple[
+    Grid, CenteredGrid]:
+    """
+    Projects the given velocity field by solving for the pressure and subtracting its spatial_gradient.
+
+    This method is similar to :func:`field.divergence_free()` but differs in how the boundary conditions are specified.
+
+    Args:
+        velocity: Vector field sampled on a grid
+        obstacles: List of Obstacles to specify boundary conditions inside the domain (Default value = ())
+        solve: Parameters for the pressure solve as.
+
+    Returns:
+        velocity: divergence-free velocity of type `type(velocity)`
+        pressure: solved pressure field, `CenteredGrid`
+    """
+    input_velocity = velocity
+    div = divergence_kamp(velocity)
+    if solve.x0 is None:
+        pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
+        solve = copy_with(solve, x0=CenteredGrid(0, resolution=div.resolution, bounds=div.bounds,
+                                                 extrapolation=pressure_extrapolation))
+
+    pressure = math.solve_linear(masked_laplace_kamp, y=div, solve=solve)
+    grad_pressure = field.spatial_gradient_kamp(pressure, input_velocity.extrapolation, type=type(velocity))
+    velocity = velocity - grad_pressure
+    return velocity, pressure
+
+
+@math.jit_compile_linear
+def masked_laplace_kamp(pressure: CenteredGrid):
+    lap = field.laplace_kamp(pressure)
     return lap
 
 

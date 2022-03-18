@@ -10,7 +10,8 @@ Examples:
 import warnings
 
 from phi import math
-from phi.field import SampledField, ConstantField, Field, PointCloud, extrapolate_valid, Grid, sample, reduce_sample
+from phi.field import SampledField, ConstantField, Field, PointCloud, extrapolate_valid, Grid, sample, reduce_sample, \
+    laplace, laplace_laiz, solve_linear, spatial_gradient, spatial_gradient_laiz, unstack, stack, CenteredGrid, StaggeredGrid
 from phi.field._field_math import GridType
 from phi.geom import Geometry
 
@@ -31,6 +32,46 @@ def rk4(elements: Geometry, velocity: Field, dt: float, v0: math.Tensor = None) 
     vel_full = sample(velocity, elements.shifted(dt * vel_half2))
     vel_rk4 = (1 / 6.) * (v0 + 2 * (vel_half + vel_half2) + vel_full)
     return elements.shifted(dt * vel_rk4)
+
+
+# def std(field: GridType,
+#            velocity: Field,
+#            dt: float or math.Tensor,
+#            integrator=euler) -> Field:
+#
+#     if isinstance(field, CenteredGrid):
+#         grad = spatial_gradient(field, stack_dim=channel('gradient'))
+#         velocity = stack(unstack(velocity, dim='vector'), dim=channel('gradient'))
+#         ammount = velocity * grad
+#         return field - dt * sum(unstack(ammount, dim='gradient'))
+#     elif isinstance(field, StaggeredGrid):
+#         field_components = unstack(field, 'vector')
+#         grad_list = [spatial_gradient(field_component, stack_dim=channel('gradient')) for field_component in field_components]
+#         grad_grid = field.with_values(math.stack([component.values for component in grad_list], channel('vector')))
+#         velocity = stack(unstack(velocity, dim='vector'), dim=channel('gradient'))
+#         ammount = velocity * grad_grid
+#         return field - dt * sum(unstack(ammount, dim='gradient'))
+
+def laiz(field: GridType,
+        velocity: Field,
+        dt: float or math.Tensor,
+        integrator=euler) -> Field:
+
+    if isinstance(field, CenteredGrid):
+        grad = spatial_gradient_laiz(field, stack_dim=math.channel('gradient'))
+        velocity = stack(unstack(velocity, dim='vector'), dim=math.channel('gradient'))
+        ammount = velocity * grad
+        return field - dt * sum(unstack(ammount, dim='gradient'))
+    elif isinstance(field, StaggeredGrid):
+        field_components = unstack(field, 'vector')
+        grad_list = [spatial_gradient_laiz(field_component, stack_dim=math.channel('gradient')) for field_component in
+                     field_components]
+        grad_grid = field.with_values(math.stack([component.values for component in grad_list], math.channel('vector')))
+
+        ammounts = [grad * vel for grad, vel in zip(unstack(grad_grid, dim='gradient'), unstack(velocity, dim='vector'))]
+        ammount = sum(ammounts)
+
+        return field - dt * ammount
 
 
 def advect(field: SampledField,

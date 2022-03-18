@@ -88,9 +88,9 @@ def key_from_args(*args, cache=False, **kwargs) -> Tuple[SignatureKey, list]:
     nest, tensors = disassemble_tree(args)
     tracing = not all_available(*tensors)
     backend = math.choose_backend_t(*tensors)
-    if tracing and cache:
-        cache = False
-        warnings.warn("Cannot cache a tensor while tracing.")
+    # if tracing and cache:
+    #     cache = False
+    #     warnings.warn("Cannot cache a tensor while tracing.")
     natives, shapes = disassemble_tensors(tensors, expand=cache)
     key = SignatureKey(None, nest, shapes, kwargs, backend, tracing)
     return key, natives

@@ -35,6 +35,7 @@ from ._field_math import (
     assert_close,
     bake_extrapolation,
     laplace, spatial_gradient, divergence, stagger, curl,  # spatial operators
+    laplace_laiz, laplace_kamp, spatial_gradient_laiz, spatial_gradient_kamp, divergence_kamp,  # higher order spatial operators
     fourier_poisson, fourier_laplace,
     mean, pad, shift, normalize, center_of_mass,
     concat, stack,

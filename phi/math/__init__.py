@@ -53,9 +53,10 @@ from ._nd import (
     normalize_to,
     l1_loss, l2_loss, frequency_loss,
     spatial_gradient, laplace,
+    spatial_gradient_laiz, spatial_gradient_kamp, spatial_gradient_kamp_mipd, laplace_laiz, laplace_kamp,
     fourier_laplace, fourier_poisson, abs_square,
     downsample2x, upsample2x, sample_subgrid,
-    extrapolate_valid_values,
+    extrapolate_valid_values, dyadic_interpolate
 )
 from ._functional import (
     LinearFunction, jit_compile_linear, jit_compile,

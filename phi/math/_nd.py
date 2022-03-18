@@ -8,10 +8,11 @@ import numpy as np
 from . import _ops as math
 from . import extrapolation as extrapolation
 from ._config import GLOBAL_AXIS_ORDER
-from ._ops import stack
+from ._ops import stack, unstack
 from ._shape import Shape, channel, batch, spatial
 from ._tensors import Tensor, TensorLike, variable_values
 from ._tensors import wrap
+from ._functional import solve_linear, Solve
 from .extrapolation import Extrapolation
 
 
@@ -321,6 +322,53 @@ def spatial_gradient(grid: Tensor,
         raise ValueError('Invalid difference type: {}. Can be CENTRAL or FORWARD'.format(difference))
 
 
+def spatial_gradient_laiz(grid: Tensor,
+                     dx: float or int = 1,
+                     padding: Extrapolation or None = extrapolation.BOUNDARY,
+                     dims: tuple or None = None,
+                     stack_dim: Shape = channel('gradient')):
+
+    twoleft, left, right, tworight = shift(grid, (-2, -1, 1, 2), dims, padding,
+                                                   stack_dim=stack_dim)
+    rhs = 14 / 9 * (right - left) / (2 * dx) + 1 / 9 * (tworight - twoleft) / (4 * dx)
+
+    if dims is None:
+        dims = grid.shape.spatial
+
+    def lhs(x):
+        # result = []
+        # for dim, component in zip(dims, unstack(x, stack_dim.name)):
+        #     left, center, right = shift(component, (-1, 0, 1), dim.name, padding, stack_dim=None)
+        #     result.append(1 / 3 * left + center + 1 / 3 * right)
+        # return stack(result, stack_dim)
+        return x
+
+    result = solve_linear(lhs, rhs, solve=Solve('CG', 1e-5, 0, x0=grid))
+    return result
+
+
+def spatial_gradient_kamp(grid: Tensor,
+                     dx: float or int = 1,
+                     padding: Extrapolation or None = extrapolation.BOUNDARY,
+                     dims: tuple or None = None,
+                     stack_dim: Shape = channel('gradient')):
+
+    two_left, left, right, two_right = shift(grid, (-2, -1, 1, 2), dims, padding, stack_dim=stack_dim)
+    result = (1/12 * two_left + -2/3 * left + 2/3 * right + -1/12 * two_right) / dx
+    return result
+
+
+def spatial_gradient_kamp_mipd(grid: Tensor,
+                     dx: float or int = 1,
+                     padding: Extrapolation or None = extrapolation.BOUNDARY,
+                     dims: tuple or None = None,
+                     stack_dim: Shape = channel('gradient')):
+
+    left, center, right, two_right = shift(grid, (-1, 0, 1, 2), dims, padding, stack_dim=stack_dim)
+    result = (left - 27 * center + 27 * right - two_right) / (24 * dx)
+    return result
+
+
 # Laplace
 
 def laplace(x: Tensor,
@@ -349,6 +397,50 @@ def laplace(x: Tensor,
         return x.spatial_gradient()
     left, center, right = shift(wrap(x), (-1, 0, 1), dims, padding, stack_dim=batch('_laplace'))
     result = (left + right - 2 * center) / (dx ** 2)
+    result = math.sum_(result, '_laplace')
+    return result
+
+
+def laplace_laiz(x: Tensor,
+            dx: Tensor or float = 1,
+            padding: Extrapolation = extrapolation.BOUNDARY,
+            dims: tuple or None = None):
+
+    if isinstance(dx, (tuple, list)):
+        dx = wrap(dx, batch('_laplace'))
+    elif isinstance(dx, Tensor) and dx.vector.exists:
+        dx = math.rename_dims(dx, 'vector', batch('_laplace'))
+    if isinstance(x, Extrapolation):
+        return x.spatial_gradient()
+    twoleft, left, center, right, tworight = shift(wrap(x), (-2, -1, 0, 1, 2), dims, padding, stack_dim=batch('_laplace'))
+    rhs = 12 / 11 * (right - 2 * center + left) / (dx ** 2) + 3 / 11 * (tworight - 2 * center + twoleft) / (4 * dx ** 2)
+
+    if dims is None:
+        dims = x.shape.spatial
+    def lhs(x):
+        result = []
+        for dim, component in zip(dims, unstack(x, '_laplace')):
+            left, center, right = shift(component, (-1, 0, 1), dim.name, padding, stack_dim=None)
+            result.append(2 / 11 * left + center + 2 / 11 * right)
+        return stack(result, batch('_laplace'))
+    result = solve_linear(lhs, rhs, solve=Solve('CG', 1e-5, 0, x0=x))
+    result = math.sum_(result, '_laplace')
+    return result
+
+
+def laplace_kamp(x: Tensor,
+            dx: Tensor or float = 1,
+            padding: Extrapolation = extrapolation.BOUNDARY,
+            dims: tuple or None = None):
+
+    if isinstance(dx, (tuple, list)):
+        dx = wrap(dx, batch('_laplace'))
+    elif isinstance(dx, Tensor) and dx.vector.exists:
+        dx = math.rename_dims(dx, 'vector', batch('_laplace'))
+    if isinstance(x, Extrapolation):
+        return x.spatial_gradient()
+    two_left, left, center, right, two_right = shift(wrap(x), (-2, -1, 0, 1, 2), dims, padding, stack_dim=batch('_laplace'))
+    result = (-1/12 * two_left + 4/3 * left + -5/2 * center + 4/3 * right + -1/12 * two_right) / (dx ** 2)
     result = math.sum_(result, '_laplace')
     return result
 
@@ -492,6 +584,35 @@ def sample_subgrid(grid: Tensor, start: Tensor, size: Shape) -> Tensor:
         if upper_weight[i].native() not in (0, 1):
             lower, upper = shift(grid, (0, 1), [dim], padding=None, stack_dim=None)
             grid = upper * upper_weight[i] + lower * lower_weight[i]
+    return grid
+
+
+def dyadic_interpolate(grid: Tensor, interpolation_dirs: Tuple, resolution: Shape, padding: Extrapolation):
+    for i, dim in enumerate(grid.shape.spatial.names):
+        if interpolation_dirs[i] == 0:
+            fst, last = 0, 0
+        elif interpolation_dirs[i] == -1:
+            fst, last = -2, 1
+        else:
+            fst, last = -1, 2
+
+        bottom_pad = abs(fst)
+        top_pad = last + resolution[i].size - grid.x.size
+        grid_padded = math.pad(grid, {dim: (bottom_pad, top_pad)}, padding)
+
+        if interpolation_dirs[i] == 0:
+            continue
+
+        left, center, right, two_right = shift(grid_padded, (-1, 0, 1, 2), [dim], padding=None, stack_dim=None)
+
+        rhs = (3 / 2 * (right + center) + 1 / 10 * (two_right + left)) / 2
+
+        def lhs(x):
+            left, center, right = shift(x, (-1, 0, 1), dim, padding, stack_dim=None)
+            return 1 / 3 * left + center + 1 / 3 * right
+
+        grid = solve_linear(lhs, rhs, solve=Solve('CG', 1e-5, 0, x0=center))
+
     return grid
 
 

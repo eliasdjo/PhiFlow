@@ -2,7 +2,8 @@
 Functions to simulate diffusion processes on `phi.field.Field` objects.
 """
 from phi import math
-from phi.field import ConstantField, Grid, Field, laplace, solve_linear, jit_compile_linear
+from phi.field import ConstantField, Grid, Field, laplace, solve_linear, jit_compile_linear, \
+    laplace_laiz
 from phi.field._field import FieldType
 from phi.field._grid import GridType
 from phi.math._tensors import copy_with
@@ -34,6 +35,37 @@ def explicit(field: FieldType,
     for i in range(substeps):
         field += amount / substeps * laplace(field).with_extrapolation(field.extrapolation)
     return field
+
+
+def laiz(field: FieldType,
+             diffusivity: float or math.Tensor or Field,
+             dt: float or math.Tensor,
+             substeps: int = 1) -> FieldType:
+    """
+    Simulate a finite-time diffusion process of the form dF/dt = α · ΔF on a given `Field` FieldType with diffusion coefficient α.
+
+    If `field` is periodic (set via `extrapolation='periodic'`), diffusion may be simulated in Fourier space.
+    Otherwise, finite differencing is used to approximate the
+
+    Args:
+        field: CenteredGrid, StaggeredGrid or ConstantField
+        diffusivity: Diffusion per time. `diffusion_amount = diffusivity * dt`    if order == 'l':
+        left, center, right = shift(wrap(x), (-1, 0, 1), dims, padding, stack_dim=batch('_laplace'))
+        result = (left + right - 2 * center) / (dx ** 2)
+        dt: Time interval. `diffusion_amount = diffusivity * dt`
+        substeps: number of iterations to use (Default value = 1)
+        field: FieldType:
+
+    Returns:
+        Diffused field of same type as `field`.
+    """
+    amount = diffusivity * dt
+    if isinstance(amount, Field):
+        amount = amount.at(field)
+    for i in range(substeps):
+        field += amount / substeps * laplace_laiz(field).with_extrapolation(field.extrapolation)
+    return field
+
 
 
 def implicit(field: FieldType,
