@@ -1,10 +1,12 @@
-from typing import Tuple, Optional
+from functools import partial
+from typing import Tuple, Optional, List
 
 import numpy as np
 
 from . import _ops as math
 from . import extrapolation as extrapolation
 from ._magic_ops import stack, rename_dims, concat, variable_values
+from ._functional import solve_linear, jit_compile_linear
 from ._shape import Shape, channel, batch, spatial, DimFilter, parse_dim_order
 from ._tensors import Tensor, wrap
 from .magic import PhiTreeNode
@@ -646,6 +648,38 @@ def sample_subgrid(grid: Tensor, start: Tensor, size: Shape) -> Tensor:
             lower, upper = shift(grid, (0, 1), [dim], padding=None, stack_dim=None)
             grid = upper * upper_weight[i] + lower * lower_weight[i]
     return grid
+
+
+def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapolation, scheme):
+    if scheme.is_implicit:
+        if scheme.order == 6:
+            values, needed_shifts = [1 / 20, 3 / 4, 3 / 4, 1 / 20], (-1, 0, 1, 2)
+            values_rhs, needed_shifts_rhs = [3 / 10, 1, 3 / 10], (-1, 0, 1)
+        else:
+            return NotImplemented
+    else:
+        return NotImplemented
+
+    result = grid
+    for dim, dir in zip(grid.shape.spatial.names, interpolation_dirs):
+        if dir == 0: continue
+        is_neg_dir = dir == -1
+        current_widths = [abs(min(needed_shifts)) + is_neg_dir, max(needed_shifts) - is_neg_dir]
+        padded = math.pad(result, {dim: tuple(current_widths)}, padding)
+        shifted = shift(padded, needed_shifts, [dim], padding=None, stack_dim=None)
+        result = sum([value * shift for value, shift in zip(values, shifted)])
+
+        if scheme.is_implicit:
+            scheme.solve.x0 = result
+            result = solve_linear(dyadic_interpolate_lhs, result, solve=scheme.solve,
+                                  f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
+                                            "dim": dim, "padding": padding})
+    return result
+
+@partial(jit_compile_linear, auxiliary_args="values_rhs, needed_shifts_rhs")
+def dyadic_interpolate_lhs(x, values_rhs, needed_shifts_rhs, dim, padding):
+    shifted = shift(x, needed_shifts_rhs, stack_dim=None, dims=[dim], padding=padding)
+    return sum([value * shift for value, shift in zip(values_rhs, shifted)])
 
 
 # Poisson Brackets
