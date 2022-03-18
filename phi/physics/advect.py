@@ -10,8 +10,34 @@ Examples:
 from phi import math
 from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample
 from phi.field._field import FieldType
+from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample, \
+    spatial_gradient, spatial_gradient, unstack, stack, CenteredGrid, StaggeredGrid
 from phi.field._field_math import GridType
+from phi.field.numerical import Scheme
 from phi.geom import Geometry
+
+
+def finite_difference(field: GridType,
+         velocity: Field,
+         dt: float or math.Tensor,
+         scheme: Scheme = Scheme(2)) -> Field:
+
+    if isinstance(field, CenteredGrid):
+        grad = spatial_gradient(field, stack_dim=math.channel('gradient'), scheme=scheme)
+        velocity = stack(unstack(velocity, dim='vector'), dim=math.channel('gradient'))
+        ammounts = velocity * grad
+        ammount = sum(unstack(ammounts, dim='gradient'))
+        return field - dt * ammount
+    elif isinstance(field, StaggeredGrid):
+        field_components = unstack(field, 'vector')
+        grad_list = [spatial_gradient(field_component, stack_dim=math.channel('gradient'), scheme=scheme) for field_component in
+                     field_components]
+        grad_grid = field.with_values(math.stack([component.values for component in grad_list], math.channel('vector')))
+        velocity._scheme = True
+        ammounts = [grad * vel.at(grad, scheme=scheme) for grad, vel in zip(unstack(grad_grid, dim='gradient'), unstack(velocity, dim='vector'))]
+        ammount = sum(ammounts)
+
+        return field - dt * ammount
 
 
 def euler(elements: Geometry, velocity: Field, dt: float, v0: math.Tensor = None) -> Geometry:
@@ -47,7 +73,9 @@ def finite_rk4(elements: Geometry, velocity: Grid, dt: float, v0: math.Tensor = 
 def advect(field: SampledField,
            velocity: Field,
            dt: float or math.Tensor,
-           integrator=euler) -> FieldType:
+           integrator=euler,
+           scheme: Scheme = None
+           ) -> FieldType:
     """
     Advect `field` along the `velocity` vectors using the specified integrator.
 
@@ -65,6 +93,9 @@ def advect(field: SampledField,
     Returns:
         Advected field of same type as `field`
     """
+
+    if scheme is not None:
+        return finite_difference(field, velocity, dt=dt, scheme=scheme)
     if isinstance(field, PointCloud):
         return points(field, velocity, dt=dt, integrator=integrator)
     elif isinstance(field, Grid):

@@ -2,10 +2,24 @@
 Functions to simulate diffusion processes on `phi.field.Field` objects.
 """
 from phi import math
-from phi.field import Grid, Field, laplace, solve_linear, jit_compile_linear
+from phi.field import Grid, Field, laplace, solve_linear, jit_compile_linear, laplace
 from phi.field._field import FieldType
 from phi.field._grid import GridType
+from phi.field.numerical import Scheme
 from phi.math import copy_with
+
+
+def finite_difference(field: FieldType,
+                      diffusivity: float or math.Tensor or Field,
+                      dt: float or math.Tensor,
+                      scheme: Scheme = Scheme(2)) -> FieldType:
+
+    amount = diffusivity * dt
+    if isinstance(amount, Field):
+        amount = amount.at(field)
+
+    field += amount * laplace(field, scheme=scheme).with_extrapolation(field.extrapolation)
+    return field
 
 
 def explicit(field: FieldType,
