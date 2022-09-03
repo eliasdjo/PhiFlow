@@ -23,7 +23,6 @@ from ._grid import Grid, CenteredGrid, StaggeredGrid
 from ._point_cloud import PointCloud
 from ._noise import Noise
 from ._angular_velocity import AngularVelocity
-
 from phi.math import (
     abs, sign, round, ceil, floor, sqrt, exp, isfinite, is_finite, real, imag, sin, cos, cast, to_float, to_int32, to_int64, convert,
     stop_gradient,
