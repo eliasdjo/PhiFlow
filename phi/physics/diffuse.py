@@ -74,6 +74,7 @@ def implicit(field: FieldType,
 
     if not solve.x0:
         solve = copy_with(solve, x0=field)
+        sharpen(field)
     return solve_linear(sharpen, y=field, solve=solve)
 
 
