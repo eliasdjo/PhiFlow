@@ -118,7 +118,7 @@ def spatial_gradient(field: CenteredGrid,
 
     extrapol_map = {}
     if not scheme.is_implicit:
-        if scheme.order == 2:
+        if scheme.order == 2 or scheme.order == 20:
             if type == CenteredGrid:
                 values, needed_shifts = [-1/2, 1/2], (-1, 1)
                 values_b0, needed_shifts_b0 = [-1, 1], (0, 1)
@@ -169,26 +169,25 @@ def spatial_gradient(field: CenteredGrid,
     if scheme.is_implicit:
         gradient_extrapolation = map(ex_map_f(extrapol_map_rhs), gradient_extrapolation)
 
-
-
-
-    # for shifted_component, dim in shifted_components, field.shape.spatial.names:
-    #     shape = shifted_component.values.shape
-    #     mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only('x')),
-    #                                                             tensor([0], instance('points')),
-    #                                                             tensor([1], instance('points')))
-    #     mask_tensor_ =  math.where(mask_tensor, 0, 1)
-    #
-    #     shifted_component = shifted_component * shifted_component.with_values(mask_tensor_)
-    #
-    #     if type == CenteredGrid:
-    #         padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
-    #     else:
-    #         base_widths = (base_widths[0], base_widths[1] - 1)
-    #         padded_components = pad_for_staggered_output(field, gradient_extrapolation,
-    #                                                      field.shape.spatial.names, base_widths)
-
     result_components = apply_stencil(values, needed_shifts)
+
+
+    if scheme.order == 20:
+        one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+        one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], needed_shifts_b0[::-1])
+
+        for i, dim in enumerate(field.shape.spatial.names):
+            rc = result_components[i]
+            shape = rc.values.shape
+            mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(result_components)),
+                                                                    tensor([0], instance('points')),
+                                                                    tensor([1], instance('points')))
+            mask_tensor_ = math.where(mask_tensor, 0, 1)
+            # TODO ED6 better solution?
+
+            rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
+            rc = rc + one_sided_components * rc.with_values(mask_tensor) + one_sided_components_top * rc.with_values(mask_tensor.flip(dim))
+            result_components[i] = rc
 
     if type == CenteredGrid:
         result = stack(result_components, stack_dim)
