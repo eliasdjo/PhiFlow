@@ -121,6 +121,7 @@ def spatial_gradient(field: CenteredGrid,
         if scheme.order == 2:
             if type == CenteredGrid:
                 values, needed_shifts = [-1/2, 1/2], (-1, 1)
+                values_b0, needed_shifts_b0 = [-1, 1], (0, 1)
             else:
                 values, needed_shifts = [-1, 1], (0, 1)
 
@@ -144,21 +145,50 @@ def spatial_gradient(field: CenteredGrid,
                 extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
 
 
-    base_widths = (abs(min(needed_shifts)), max(needed_shifts))
+    def apply_stencil(values, needed_shifts):
+        base_widths = (abs(min(needed_shifts)), max(needed_shifts))
+
+        if type == CenteredGrid:
+            padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
+        else:
+            base_widths = (base_widths[0], base_widths[1] - 1)
+            padded_components = pad_for_staggered_output(field, gradient_extrapolation,
+                                                         field.shape.spatial.names, base_widths)
+
+        shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
+                              padded_component, dim in zip(padded_components, field.shape.spatial.names)]
+        result_components = [
+            sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim] for
+            shifted_component, dim in zip(shifted_components, field.shape.spatial.names)]
+
+        return result_components
+
+
     field.with_extrapolation(map(ex_map_f(extrapol_map), field.extrapolation))
 
     if scheme.is_implicit:
         gradient_extrapolation = map(ex_map_f(extrapol_map_rhs), gradient_extrapolation)
 
-    if type == CenteredGrid:
-        padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
-    else:
-        base_widths = (base_widths[0], base_widths[1]-1)
-        padded_components = pad_for_staggered_output(field, gradient_extrapolation,
-                                                     field.shape.spatial.names, base_widths)
 
-    shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for padded_component, dim in zip(padded_components, field.shape.spatial.names)]
-    result_components = [sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim] for shifted_component, dim in zip(shifted_components, field.shape.spatial.names)]
+
+
+    # for shifted_component, dim in shifted_components, field.shape.spatial.names:
+    #     shape = shifted_component.values.shape
+    #     mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only('x')),
+    #                                                             tensor([0], instance('points')),
+    #                                                             tensor([1], instance('points')))
+    #     mask_tensor_ =  math.where(mask_tensor, 0, 1)
+    #
+    #     shifted_component = shifted_component * shifted_component.with_values(mask_tensor_)
+    #
+    #     if type == CenteredGrid:
+    #         padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
+    #     else:
+    #         base_widths = (base_widths[0], base_widths[1] - 1)
+    #         padded_components = pad_for_staggered_output(field, gradient_extrapolation,
+    #                                                      field.shape.spatial.names, base_widths)
+
+    result_components = apply_stencil(values, needed_shifts)
 
     if type == CenteredGrid:
         result = stack(result_components, stack_dim)
