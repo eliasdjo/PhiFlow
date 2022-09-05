@@ -159,19 +159,19 @@ xy_nums = [5, 15, 35, 65, 105, 165, 225]
 # xy_nums = [250]
 
 
-TestRun("laplacian", xy_nums, CenteredGrid,
-        [partial(field.laplace),
-         partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
-         partial(field.laplace, scheme=Scheme(4)),
-         partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-        tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
-
-TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
-        [partial(field.laplace),
-         partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
-         partial(field.laplace, scheme=Scheme(4)),
-         partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-        tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
+# TestRun("laplacian", xy_nums, CenteredGrid,
+#         [partial(field.laplace),
+#          partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
+#          partial(field.laplace, scheme=Scheme(4)),
+#          partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+#         tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
+#
+# TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
+#         [partial(field.laplace),
+#          partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
+#          partial(field.laplace, scheme=Scheme(4)),
+#          partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+#         tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
 
 
 # TestRun("diffusion", xy_nums, CenteredGrid,
@@ -187,32 +187,32 @@ TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
 #         tgv_velocity_diffuse, ["explicit", "kamp", "laiz"])
 #
 #
-# TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
-#         [partial(field.spatial_gradient), partial(field.spatial_gradient, scheme=Scheme(4)),
-#          partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-#         tgv_velocity_gradient_fst_comp, ["spatial_gradient_lo", "spatial_gradient_kamp", "spatial_gradient_laiz"],
-#         scalar_input=0)
-# #
-# TestRun("gradient_staggered_fst_comp", xy_nums, StaggeredGrid,
-#         [partial(field.spatial_gradient, type=StaggeredGrid), partial(field.spatial_gradient, scheme=Scheme(4), type=StaggeredGrid),
-#          partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)), type=StaggeredGrid)],
-#         tgv_velocity_gradient_fst_comp,
-#         ["spatial_gradient", "spatial_gradient_kamp", "spatial_gradient_laiz"],
-#         scalar_input=0, input_gridtype=CenteredGrid)
+TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
+        [partial(field.spatial_gradient), partial(field.spatial_gradient, scheme=Scheme(4)),
+         partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+        tgv_velocity_gradient_fst_comp, ["spatial_gradient_lo", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        scalar_input=0)
 #
-#
-# TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
-#         [partial(field.spatial_gradient), partial(field.spatial_gradient, scheme=Scheme(4)),
-#          partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-#         tgv_velocity_gradient_snd_comp, ["spatial_gradient_lo", "spatial_gradient_kamp", "spatial_gradient_laiz"],
-#         scalar_input=1)
-#
-# TestRun("gradient_staggered_snd_comp", xy_nums, StaggeredGrid,
-#         [partial(field.spatial_gradient, type=StaggeredGrid), partial(field.spatial_gradient, scheme=Scheme(4), type=StaggeredGrid),
-#          partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)), type=StaggeredGrid)],
-#         tgv_velocity_gradient_snd_comp,
-#         ["spatial_gradient", "spatial_gradient_kamp", "spatial_gradient_laiz"],
-#         scalar_input=1, input_gridtype=CenteredGrid)
+TestRun("gradient_staggered_fst_comp", xy_nums, StaggeredGrid,
+        [partial(field.spatial_gradient, type=StaggeredGrid), partial(field.spatial_gradient, scheme=Scheme(4), type=StaggeredGrid),
+         partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)), type=StaggeredGrid)],
+        tgv_velocity_gradient_fst_comp,
+        ["spatial_gradient", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        scalar_input=0, input_gridtype=CenteredGrid)
+
+
+TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
+        [partial(field.spatial_gradient), partial(field.spatial_gradient, scheme=Scheme(4)),
+         partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+        tgv_velocity_gradient_snd_comp, ["spatial_gradient_lo", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        scalar_input=1)
+
+TestRun("gradient_staggered_snd_comp", xy_nums, StaggeredGrid,
+        [partial(field.spatial_gradient, type=StaggeredGrid), partial(field.spatial_gradient, scheme=Scheme(4), type=StaggeredGrid),
+         partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)), type=StaggeredGrid)],
+        tgv_velocity_gradient_snd_comp,
+        ["spatial_gradient", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        scalar_input=1, input_gridtype=CenteredGrid)
 #
 #
 # TestRun("advection", xy_nums, CenteredGrid,

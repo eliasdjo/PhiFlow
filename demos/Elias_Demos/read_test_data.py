@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 
 prefix = "operation_accuracy/data/"
 names = [
-    # "gradient_snd_comp", "gradient_snd_comp",
-    #      "gradient_fst_comp", "gradient_fst_comp",
-         "laplacian", "laplacian_staggered",
+    "gradient_snd_comp", "gradient_snd_comp",
+         "gradient_fst_comp", "gradient_fst_comp",
+    #      "laplacian", "laplacian_staggered",
          # "divergence", "divergence_staggered",
          # "diffusion", "diffusion_staggered",
          # "advection", "advection_staggered"
