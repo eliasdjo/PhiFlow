@@ -125,10 +125,10 @@ def spatial_gradient(field: CenteredGrid,
                 values, needed_shifts = [-1, 1], (0, 1)
         if scheme.order == 20:
             values, needed_shifts = [-1 / 2, 1 / 2], (-1, 1)
-            values_b0, needed_shifts_b0 = [-1, 1], (0, 1)
+            v_ns_b0 = [([-1, 1], (0, 1))]
         if scheme.order == 21:
             values, needed_shifts = [-1 / 2, 1 / 2], (-1, 1)
-            values_b0, needed_shifts_b0 = [-137 / 60, 5, -5, 10 / 3, -5 / 4, 1 / 5], (0, 1, 2, 3, 4, 5)
+            v_ns_b0 = [([-137 / 60, 5, -5, 10 / 3, -5 / 4, 1 / 5], (0, 1, 2, 3, 4, 5))]
 
         elif scheme.order == 4:
             if type == CenteredGrid:
@@ -177,22 +177,24 @@ def spatial_gradient(field: CenteredGrid,
     result_components = apply_stencil(values, needed_shifts)
 
 
-    if scheme.order >=10:
-        one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
-        one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], [-shift for shift in reversed(needed_shifts_b0)])
+    if scheme.order >= 10:
+        for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
 
-        for i, dim in enumerate(field.shape.spatial.names):
-            rc = result_components[i]
-            shape = rc.values.shape
-            mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
-                                                                    tensor([0], instance('points')),
-                                                                    tensor([1], instance('points')))
-            mask_tensor_ = math.where(mask_tensor, 0, 1)
-            # TODO ED6 better solution?
+            one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+            one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], [-shift for shift in reversed(needed_shifts_b0)])
 
-            rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
-            rc = rc + one_sided_components[i] * rc.with_values(mask_tensor) + one_sided_components_top[i] * rc.with_values(mask_tensor.flip(dim))
-            result_components[i] = rc
+            for dim_i, dim in enumerate(field.shape.spatial.names):
+                rc = result_components[dim_i]
+                shape = rc.values.shape
+                mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
+                                                                        tensor([i], instance('points')),
+                                                                        tensor([1], instance('points')))
+                mask_tensor_ = math.where(mask_tensor, 0, 1)
+                # TODO ED6 better solution?
+
+                rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
+                rc = rc + one_sided_components[dim_i] * rc.with_values(mask_tensor) + one_sided_components_top[dim_i] * rc.with_values(mask_tensor.flip(dim))
+                result_components[dim_i] = rc
 
     if type == CenteredGrid:
         result = stack(result_components, stack_dim)
