@@ -118,12 +118,17 @@ def spatial_gradient(field: CenteredGrid,
 
     extrapol_map = {}
     if not scheme.is_implicit:
-        if scheme.order == 2 or scheme.order == 20:
+        if scheme.order == 2:
             if type == CenteredGrid:
                 values, needed_shifts = [-1/2, 1/2], (-1, 1)
-                values_b0, needed_shifts_b0 = [-1, 1], (0, 1)
             else:
                 values, needed_shifts = [-1, 1], (0, 1)
+        if scheme.order == 20:
+            values, needed_shifts = [-1 / 2, 1 / 2], (-1, 1)
+            values_b0, needed_shifts_b0 = [-1, 1], (0, 1)
+        if scheme.order == 21:
+            values, needed_shifts = [-1 / 2, 1 / 2], (-1, 1)
+            values_b0, needed_shifts_b0 = [-137 / 60, 5, -5, 10 / 3, -5 / 4, 1 / 5], (0, 1, 2, 3, 4, 5)
 
         elif scheme.order == 4:
             if type == CenteredGrid:
@@ -158,7 +163,7 @@ def spatial_gradient(field: CenteredGrid,
         shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
                               padded_component, dim in zip(padded_components, field.shape.spatial.names)]
         result_components = [
-            sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim] for
+            (sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim]).with_bounds(field.bounds) for
             shifted_component, dim in zip(shifted_components, field.shape.spatial.names)]
 
         return result_components
@@ -172,21 +177,21 @@ def spatial_gradient(field: CenteredGrid,
     result_components = apply_stencil(values, needed_shifts)
 
 
-    if scheme.order == 20:
+    if scheme.order >=10:
         one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
-        one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], needed_shifts_b0[::-1])
+        one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], [-shift for shift in reversed(needed_shifts_b0)])
 
         for i, dim in enumerate(field.shape.spatial.names):
             rc = result_components[i]
             shape = rc.values.shape
-            mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(result_components)),
+            mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
                                                                     tensor([0], instance('points')),
                                                                     tensor([1], instance('points')))
             mask_tensor_ = math.where(mask_tensor, 0, 1)
             # TODO ED6 better solution?
 
             rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
-            rc = rc + one_sided_components * rc.with_values(mask_tensor) + one_sided_components_top * rc.with_values(mask_tensor.flip(dim))
+            rc = rc + one_sided_components[i] * rc.with_values(mask_tensor) + one_sided_components_top[i] * rc.with_values(mask_tensor.flip(dim))
             result_components[i] = rc
 
     if type == CenteredGrid:
@@ -206,7 +211,7 @@ def spatial_gradient(field: CenteredGrid,
                               f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
                                         "stack_dim": stack_dim, "staggered_output": type != CenteredGrid})
 
-    return result.with_bounds(field.bounds)
+    return result
 
 def ex_map_f(ext_dict: dict):
     def f(ext: Extrapolation):

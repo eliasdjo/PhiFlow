@@ -253,18 +253,18 @@ small_test = [5, 15, 45, 65],
 # low_order_stagg.calc_errors(relative_error=True)
 
 
-mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
-mid_order.run(jit_compile=True)
-mid_order.calc_errors(relative_error=True)
-
-mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
-mid_order_stagg.run(jit_compile=True)
-mid_order_stagg.calc_errors(relative_error=True)
-
-
-high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
-high_order.run(jit_compile=True)
-high_order.calc_errors(relative_error=True)
+# mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
+# mid_order.run(jit_compile=True)
+# mid_order.calc_errors(relative_error=True)
+#
+# mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
+# mid_order_stagg.run(jit_compile=True)
+# mid_order_stagg.calc_errors(relative_error=True)
+#
+#
+# high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
+# high_order.run(jit_compile=True)
+# high_order.calc_errors(relative_error=True)
 
 high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
 high_order_stagg.run(jit_compile=True)
