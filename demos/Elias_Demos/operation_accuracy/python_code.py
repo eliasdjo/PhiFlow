@@ -194,12 +194,14 @@ xy_nums = [7, 15, 35, 65, 105, 165, 225]
 TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
         [
             partial(field.spatial_gradient),
-         partial(field.spatial_gradient, scheme=Scheme(20)),
+            partial(field.spatial_gradient, scheme=Scheme(20)),
             partial(field.spatial_gradient, scheme=Scheme(21)),
-         partial(field.spatial_gradient, scheme=Scheme(4)),
-         partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+            partial(field.spatial_gradient, scheme=Scheme(22)),
+            partial(field.spatial_gradient, scheme=Scheme(4)),
+            partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
         tgv_velocity_gradient_fst_comp,
-        ["spatial_gradient_lo", "spatial_gradient_lo_os", "spatial_gradient_lo_os2", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        ["spatial_gradient_lo", "spatial_gradient_lo_os", "spatial_gradient_lo_os2", "spatial_gradient_lo_osb", "spatial_gradient_kamp",
+         "spatial_gradient_laiz"],
         scalar_input=0, plot_error_field=False)
 #
 # TestRun("gradient_staggered_fst_comp", xy_nums, StaggeredGrid,
@@ -212,11 +214,12 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
 
 TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
         [partial(field.spatial_gradient), partial(field.spatial_gradient, scheme=Scheme(20)),
-partial(field.spatial_gradient, scheme=Scheme(21)),
+         partial(field.spatial_gradient, scheme=Scheme(21)),
          partial(field.spatial_gradient, scheme=Scheme(4)),
          partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
         tgv_velocity_gradient_snd_comp,
-        ["spatial_gradient_lo", "spatial_gradient_lo_os", "spatial_gradient_lo_os2", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+        ["spatial_gradient_lo", "spatial_gradient_lo_os", "spatial_gradient_lo_os2", "spatial_gradient_kamp",
+         "spatial_gradient_laiz"],
         scalar_input=1)
 
 # TestRun("gradient_staggered_snd_comp", xy_nums, StaggeredGrid,
