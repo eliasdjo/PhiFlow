@@ -147,17 +147,35 @@ def spatial_gradient(field: CenteredGrid,
             if type == CenteredGrid:
                 values, needed_shifts = [-1/36, -14/18, 14/18, 1/36], (-2, -1, 1, 2)
                 values_rhs, needed_shifts_rhs = [1/3, 1, 1/3], (-1, 0, 1)
+                v_ns_b0_rhs = []
 
             else:
                 values, needed_shifts = [-17/186, -63/62, 63/62, 17/186], (-1, 0, 1, 2)
                 extrapol_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
 
                 values_rhs, needed_shifts_rhs = [9/62, 1, 9/62], (-1, 0, 1)
+                v_ns_b0_rhs = []
+                extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
+
+        if scheme.order == 6:
+            if type == CenteredGrid:
+                values, needed_shifts = [-1/36, -14/18, 14/18, 1/36], (-2, -1, 1, 2)
+                v_ns_b0 = []
+                values_rhs, needed_shifts_rhs = [1/3, 1, 1/3], (-1, 0, 1)
+                v_ns_b0_rhs = []
+
+            else:
+                values, needed_shifts = [-17/186, -63/62, 63/62, 17/186], (-1, 0, 1, 2)
+                v_ns_b0 = []
+                extrapol_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
+
+                values_rhs, needed_shifts_rhs = [9/62, 1, 9/62], (-1, 0, 1)
+                v_ns_b0_rhs = []
                 extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
 
 
-    def apply_stencil(values, needed_shifts):
-        base_widths = (abs(min(needed_shifts)), max(needed_shifts))
+    def apply_stencil(values_, needed_shifts_):
+        base_widths = (abs(min(needed_shifts_)), max(needed_shifts_))
 
         if type == CenteredGrid:
             padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
@@ -166,10 +184,10 @@ def spatial_gradient(field: CenteredGrid,
             padded_components = pad_for_staggered_output(field, gradient_extrapolation,
                                                          field.shape.spatial.names, base_widths)
 
-        shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
+        shifted_components = [shift(padded_component, needed_shifts_, None, pad=False, dims=dim) for
                               padded_component, dim in zip(padded_components, field.shape.spatial.names)]
         result_components = [
-            (sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim]).with_bounds(field.bounds) for
+            (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field.dx.vector[dim]).with_bounds(field.bounds) for
             shifted_component, dim in zip(shifted_components, field.shape.spatial.names)]
 
         return result_components
@@ -217,7 +235,7 @@ def spatial_gradient(field: CenteredGrid,
         result = result
         result = solve_linear(lhs_for_implicit_scheme, result, solve=scheme.solve,
                               f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
-                                        "stack_dim": stack_dim, "staggered_output": type != CenteredGrid})
+                                        "v_ns_b0_rhs": v_ns_b0_rhs, "stack_dim": stack_dim, "staggered_output": type != CenteredGrid})
 
     return result
 
@@ -228,11 +246,16 @@ def ex_map_f(ext_dict: dict):
 
 
 # @jit_compile_linear
-def lhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, stack_dim, staggered_output=False):
-    result = []
-    for dim, component in zip(x.shape.only(math.spatial).names, unstack(x, stack_dim.name)):
-        shifted = shift(component, needed_shifts_rhs, stack_dim=None, dims=dim)
-        result.append(sum([value * shift for value, shift in zip(values_rhs, shifted)]))
+def lhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output=False):
+
+    def apply_stencil(values_rhs_, needed_shifts_rhs_):
+        result = []
+        for dim, component in zip(x.shape.only(math.spatial).names, unstack(x, stack_dim.name)):
+            shifted = shift(component, needed_shifts_rhs_, stack_dim=None, dims=dim)
+            result.append(sum([value * shift for value, shift in zip(values_rhs_, shifted)]))
+        return result
+
+    result = apply_stencil(values_rhs, needed_shifts_rhs)
 
     if staggered_output:
         result = x.with_values(math.stack([component.values for component in result], channel('vector')))
