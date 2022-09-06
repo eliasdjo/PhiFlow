@@ -173,6 +173,14 @@ def spatial_gradient(field: CenteredGrid,
                 v_ns_b0_rhs = []
                 extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
 
+        if scheme.order == 60:
+            if type == CenteredGrid:
+                values, needed_shifts = [-1/36, -14/18, 14/18, 1/36], (-2, -1, 1, 2)
+                v_ns_b0 = [([-197/60, -5/12, 5, -5/3, 5/12, -1/20], (0, 1, 2, 3, 4, 5)),
+                           ([-43/96, -5/6, 9/8, 1/6, -1/96], (-1, 0, 1, 2, 3))]
+                values_rhs, needed_shifts_rhs = [1/3, 1, 1/3], (-1, 0, 1)
+                v_ns_b0_rhs = [([1, 5], (0, 1)), ([1/8, 3/4], (-1, 0, 1))]
+
 
     def apply_stencil(values_, needed_shifts_):
         base_widths = (abs(min(needed_shifts_)), max(needed_shifts_))
@@ -256,6 +264,23 @@ def lhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack
         return result
 
     result = apply_stencil(values_rhs, needed_shifts_rhs)
+
+    for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0_rhs):
+
+        one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+        one_sided_components_top = apply_stencil([-val for val in reversed(values_b0)], [-shift for shift in reversed(needed_shifts_b0)])
+
+        for dim_i, dim in enumerate(x.shape.spatial.names):
+            rc = result[dim_i]
+            shape = rc.values.shape
+            mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
+                                                                    tensor([i], instance('points')),
+                                                                    tensor([1], instance('points')))
+            mask_tensor_ = math.where(mask_tensor, 0, 1)
+
+            rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
+            rc = rc + one_sided_components[dim_i] * rc.with_values(mask_tensor) + one_sided_components_top[dim_i] * rc.with_values(mask_tensor.flip(dim))
+            result[dim_i] = rc
 
     if staggered_output:
         result = x.with_values(math.stack([component.values for component in result], channel('vector')))
