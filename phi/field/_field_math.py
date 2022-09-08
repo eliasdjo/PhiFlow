@@ -164,11 +164,11 @@ def spatial_gradient(field: CenteredGrid,
 
     if type == CenteredGrid:
         result = stack(result_components, stack_dim)
-        result.with_values(result.values._cache()) # ToDO ED2
+        # result.with_values(result.values._cache()) # ToDO ED2
     else:
         result = StaggeredGrid(math.stack([component.values for component in result_components], channel('vector')),
                                bounds=field.bounds, extrapolation=gradient_extrapolation)
-        result.with_values(result.values._cache()) # nötig um result.values von TensorStack in Tensor zu transformieren
+        # result.with_values(result.values._cache()) # nötig um result.values von TensorStack in Tensor zu transformieren
 
     result = result.with_extrapolation(gradient_extrapolation)
 
