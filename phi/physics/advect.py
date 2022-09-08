@@ -8,10 +8,9 @@ Examples:
 * runge_kutta_4 (particle)
 """
 from phi import math
-from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample
-from phi.field._field import FieldType
 from phi.field import SampledField, Field, PointCloud, Grid, sample, reduce_sample, \
     spatial_gradient, spatial_gradient, unstack, stack, CenteredGrid, StaggeredGrid
+from phi.field._field import FieldType
 from phi.field._field_math import GridType
 from phi.field.numerical import Scheme
 from phi.geom import Geometry
