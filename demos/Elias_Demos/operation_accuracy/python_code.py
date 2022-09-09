@@ -159,21 +159,19 @@ xy_nums = [5, 15, 35, 65, 105, 165, 225]
 # xy_nums = [250]
 
 
-TestRun("laplacian", xy_nums, CenteredGrid,
-        [partial(field.laplace),
-         partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
-         partial(field.laplace, scheme=Scheme(4)),
-         partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-        tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
-
-TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
-        [partial(field.laplace),
-         partial(field.laplace, scheme=Scheme(2, Solve('CG', 1e-12, 1e-12))),
-         partial(field.laplace, scheme=Scheme(4)),
-         partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-        tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
-
-
+# TestRun("laplacian", xy_nums, CenteredGrid,
+#         [partial(field.laplace),
+#          partial(field.laplace, scheme=Scheme(4)),
+#          partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+#         tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
+#
+# TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
+#         [partial(field.laplace),
+#          partial(field.laplace, scheme=Scheme(4)),
+#          partial(field.laplace, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+#         tgv_velocity_laplacian, ["laplace", "laplace_impl?", "laplace_kamp", "laplace_laiz"])
+#
+#
 # TestRun("diffusion", xy_nums, CenteredGrid,
 #         [partial(diffuse.finite_difference, diffusivity=1, dt=1),
 #          partial(diffuse.finite_difference, diffusivity=1, dt=1, scheme=Scheme(4)),
@@ -219,13 +217,21 @@ TestRun("laplacian_staggered", xy_nums, StaggeredGrid,
 #                    [lambda v: advect.finite_difference(v, v, 0.1), lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(4)),
 #                     lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
 #                    tgv_velocity_advect, ["std", "kamp", "laiz"])
-# #
-# TestRun("advection_staggered", xy_nums, StaggeredGrid,
-#                    [lambda v: advect.finite_difference(v, v, 0.1), lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(4)),
-#                     lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
-#                    tgv_velocity_advect, ["std", "kamp", "laiz"])
-#
-#
+
+#working Test
+# TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
+#         [partial(field.spatial_gradient, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+#         tgv_velocity_gradient_fst_comp, ["spatial_gradient_lo", "spatial_gradient_kamp", "spatial_gradient_laiz"],
+#         scalar_input=0)
+
+TestRun("advection_staggered", xy_nums, StaggeredGrid,
+                   [
+                       # lambda v: advect.finite_difference(v, v, 0.1),
+                       # lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(4)),
+                    lambda v: advect.finite_difference(v, v, 0.1, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
+                   tgv_velocity_advect, ["std", "kamp", "laiz"])
+
+
 # TestRun("divergence", xy_nums, CenteredGrid,
 #                    [partial(field.divergence), partial(field.divergence, scheme=Scheme(4)),
 #                     partial(field.divergence, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12)))],
