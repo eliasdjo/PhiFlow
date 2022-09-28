@@ -71,7 +71,8 @@ def finite_difference(grid: Grid,
 
     """
     Diffusion by using a finite difference scheme.
-
+    In contrast to `explicit` and `implicit` accuracy can be increased by using stencils of higher-order rather than calculating substeps.
+    This is controlled by the `scheme` passed.
 
     Args:
         grid: CenteredGrid or StaggeredGrid
