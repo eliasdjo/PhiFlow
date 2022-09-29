@@ -4,8 +4,8 @@ from phi.math._functional import ShiftLinTracer
 
 EMPTY_SHAPE = Shape((), (), (), ())
 
-t_func = extrapolation.SYMMETRIC.pad
-mask_t_func = extrapolation.ONE.pad
+t_func = extrapolation.ANTIREFLECT.pad
+mask_t_func = extrapolation.BOUNDARY.pad
 
 
 def test_tracer(tensor, padding):
@@ -18,23 +18,25 @@ def test_tracer(tensor, padding):
     mask_result_tracer = mask_t_func(mask_tracer, padding)
     mask = mask_result_tracer.apply(math.ones(tensor.shape))
 
-    e1 = e1 * mask
     if len(e1.shape.names) == 2:
         e1 = math.transpose(e1, (['x', 'y']))
     elif len(e1.shape.names) == 3:
         e1 = math.transpose(e1, (['x', 'y', 'z']))
 
-    # view = e1._native
-    # plot(e1)
-    # show()
-
     e2 = t_func(tensor, padding)
+    e2 = e2 * mask
+
+    plot(e1)
+    show()
+    plot(e2)
+    show()
+
     assert (e1 == e2).all
 
 
 tensors = [
     tensor((np.linspace(0, 49, 10)), spatial('x')),
-    tensor((np.linspace(1, 5 * 7, 5 * 7).reshape(5, 7)), spatial('x'), spatial('y')),
+    tensor((np.linspace(1, 12 * 21, 12 * 21).reshape(12, 21)), spatial('x'), spatial('y')),
     tensor((np.linspace(0, 49, 6000).reshape(10, 20, 30)), spatial('x'), spatial('y'), spatial('z'))
 ]
 
