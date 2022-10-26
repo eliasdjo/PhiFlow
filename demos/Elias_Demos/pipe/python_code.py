@@ -3,7 +3,7 @@ Simulates a viscous fluid flowing through a horizontal pipe.
 """
 import os
 
-from phi.flow import *
+from phi.jax.flow import *
 
 dt = 1 / 4
 visc = 0.1
@@ -55,7 +55,9 @@ class TestRun:
     def adp_high_ord(self, v, p):
         adv_diff_press = advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12))) - v
         adv_diff_press += (diffuse.finite_difference(v, visc, dt, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12))) - v) / dt
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4))
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
+            x=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC),
+            y=extrapolation.PERIODIC))
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=dt):
@@ -77,10 +79,13 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
+        DOMAIN = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(
+            x=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC),
+            y=extrapolation.PERIODIC))
 
-        DOMAIN = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(x=extrapolation.SYMMETRIC, y=(extrapolation.ONE, extrapolation.ZERO)))
+        DOMAIN2 = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(x=extrapolation.SYMMETRIC, y=extrapolation.PERIODIC))
         velocity = StaggeredGrid(0, **DOMAIN)
-        pressure = CenteredGrid(0, **DOMAIN)
+        pressure = CenteredGrid(0, **DOMAIN2)
 
         # pressure = CenteredGrid(partial(tgv_pressure, vis=visc, t=0), **DOMAIN)
         # velocity = self.gridtype(partial(tgv_velocity, vis=visc, t=0), **DOMAIN)
@@ -114,7 +119,6 @@ class TestRun:
         vx = file['vx']
         vy = file['vy']
         p = file['p']
-        xy_num = file['xy_num'].item()
         t_num = file['t_num'].item()
         dt = file['dt'].item()
         visc = file['visc'].item()
@@ -122,10 +126,10 @@ class TestRun:
 
         for i in range(int(t_num / freq)):
             t = tensor(i * freq * dt)
-            figure = vis.plot(vx[i], vy[i])
-            figure.title(f"t = {t}")
-            vis.savefig(f"plots/{self.name}/{t}")
+            vis.plot(tensor(vx[i], spatial('x'), spatial('y')), tensor(vy[i], spatial('x'), spatial('y')))
+            vis.savefig(f"plots/{self.name}/{t}.jpg")
 
 tges = 10
 high_order = TestRun(tges, StaggeredGrid, "high_order", name="high_order")
-high_order.run(t_num=100, freq=1)
+# high_order.run(t_num=100, freq=1)
+high_order.draw_plots()
