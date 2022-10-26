@@ -148,6 +148,9 @@ class Extrapolation:
             Shortest distance from `start` to `end`.
         """
         return end - start
+    
+    def _get_vector_item(self, vector_dim, spatial_dims):
+        return self
 
     def __getitem__(self, item):
         return self
@@ -1141,6 +1144,9 @@ class _MixedExtrapolation(Extrapolation):
     def __neg__(self):
         return combine_sides(**{ax: (-lo, -up) for ax, (lo, up) in self.ext.items()})
 
+    def _get_vector_item(self, vector_dim, spatial_dims):
+        return combine_sides(**{ax: (es[0]._get_vector_item(vector_dim, ax), es[1]._get_vector_item(vector_dim, ax)) for ax, es in self.ext.items()})
+
 
 class _NormalTangentialExtrapolation(Extrapolation):
 
@@ -1214,6 +1220,9 @@ class _NormalTangentialExtrapolation(Extrapolation):
 
     def __eq__(self, other):
         return isinstance(other, _NormalTangentialExtrapolation) and self.normal == other.normal and self.tangential == other.tangential
+
+    def _get_vector_item(self, vector_dim, spatial_dims):
+        return combine_sides(**{dir: self.normal if vector_dim == dir else self.tangential for dir in spatial_dims})
 
     def __add__(self, other):
         return self._op2(other, lambda e1, e2: e1 + e2)

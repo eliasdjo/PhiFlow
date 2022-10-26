@@ -203,6 +203,13 @@ class CenteredGrid(Grid):
             return self
         values = self._values[item]
         extrapolation = self._extrapolation[item]
+        if 'vector' in item:
+            selection = item['vector']
+            if isinstance(selection, int):
+                selection = self.shape.spatial.names[selection]
+            if isinstance(selection, str):
+                extrapolation = self.extrapolation._get_vector_item(selection, self.shape.spatial.names)
+
         keep_dims = [dim for dim in self.resolution.names if dim not in item or not isinstance(item[dim], int)]
         bounds = self.elements[item].bounds[{'vector': keep_dims}]
         return CenteredGrid(values, bounds=bounds, extrapolation=extrapolation)
@@ -423,6 +430,7 @@ class StaggeredGrid(Grid):
             if isinstance(selection, int):
                 dim = self.shape.spatial.names[selection]
                 comp_cells = GridCell(self.resolution, bounds).stagger(dim, *self.extrapolation.valid_outer_faces(dim))
+                extrapolation = self.extrapolation._get_vector_item(self.shape.spatial.names[selection], self.shape.spatial.names)
                 return CenteredGrid(values, bounds=comp_cells.bounds, extrapolation=extrapolation)
             else:
                 assert isinstance(selection, slice) and not selection.start and not selection.stop
