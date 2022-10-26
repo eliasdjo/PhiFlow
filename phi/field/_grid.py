@@ -226,7 +226,7 @@ class CenteredGrid(Grid):
             elif math.close(self.dx, geometry.size):
                 if all([math.close(offset, geometry.half_size) or math.close(offset, 0)
                         for offset in math.abs(self.bounds.lower - geometry.bounds.lower)]):
-                    dyadic_interpolated = self._dyadic_interplate(geometry.resolution, geometry.bounds, scheme)
+                    dyadic_interpolated = self._dyadic_interplate(geometry.resolution, geometry, scheme)
                     if dyadic_interpolated is not NotImplemented:
                         return dyadic_interpolated
                 fast_resampled = self._shift_resample(geometry.resolution, geometry.bounds)
@@ -245,11 +245,11 @@ class CenteredGrid(Grid):
                 return math.where(inside, resampled_values, ext_values)
         return resampled_values
 
-    def _dyadic_interplate(self, resolution: Shape, bounds: Box, scheme: Scheme):
+    def _dyadic_interplate(self, resolution: Shape, geometry, scheme: Scheme):
         from phi.math._nd import _dyadic_interpolate
-        offsets = bounds.lower - self.bounds.lower
+        offsets = geometry.bounds.lower - self.bounds.lower
         interpolation_dirs = [0 if math.close(offset, 0) else int(math.sign(offset)) for offset in offsets]
-        return _dyadic_interpolate(self.values, interpolation_dirs, self.extrapolation, scheme)
+        return _dyadic_interpolate(self.values, interpolation_dirs, self.extrapolation, scheme, geometry.shape)
 
     def _shift_resample(self, resolution: Shape, bounds: Box, threshold=1e-5, max_padding=20):
         assert math.all_available(bounds.lower, bounds.upper), "Shift resampling requires 'bounds' to be available."

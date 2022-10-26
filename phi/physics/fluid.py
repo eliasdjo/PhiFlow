@@ -204,6 +204,8 @@ def _pressure_extrapolation(vext: Extrapolation):
         return extrapolation.BOUNDARY
     elif isinstance(vext, extrapolation._MixedExtrapolation):
         return combine_sides(**{dim: (_pressure_extrapolation(lo), _pressure_extrapolation(hi)) for dim, (lo, hi) in vext.ext.items()})
+    elif extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC):
+        return extrapolation.SYMMETRIC
     else:
         raise ValueError(f"Unsupported extrapolation: {type(vext)}")
 
@@ -212,6 +214,8 @@ def _accessible_extrapolation(vext: Extrapolation):
     """ Determine whether outside cells are accessible based on the velocity extrapolation. """
     if vext == extrapolation.PERIODIC:
         return extrapolation.PERIODIC
+    if vext == extrapolation.REFLECT:
+        return extrapolation.REFLECT
     elif vext == extrapolation.BOUNDARY:
         return extrapolation.ONE
     elif isinstance(vext, extrapolation.ConstantExtrapolation):

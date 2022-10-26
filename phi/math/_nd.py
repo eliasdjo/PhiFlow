@@ -650,7 +650,7 @@ def sample_subgrid(grid: Tensor, start: Tensor, size: Shape) -> Tensor:
     return grid
 
 
-def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapolation, scheme):
+def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapolation, scheme, shape=None):
     """
     Samples a sub-grid from `grid` with an offset of half a grid cell in directions defined by `interpolation_dirs`.
 
@@ -676,12 +676,16 @@ def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapo
     else:
         return NotImplemented
 
+    if shape is None:
+        shape = grid.shape
+
     result = grid
     for dim, dir in zip(grid.shape.spatial.names, interpolation_dirs):
         if dir == 0: continue
         is_neg_dir = dir == -1
-        current_widths = [abs(min(needed_shifts)) + is_neg_dir, max(needed_shifts) - is_neg_dir]
-        padded = math.pad(result, {dim: tuple(current_widths)}, padding)
+        size_diff = shape.get_size(dim) - grid.shape.get_size(dim)
+        current_widths = (abs(min(needed_shifts)) + is_neg_dir, max(needed_shifts) - is_neg_dir + size_diff)
+        padded = math.pad(result, {dim: current_widths}, padding)
         shifted = shift(padded, needed_shifts, [dim], padding=None, stack_dim=None)
         result = sum([value * shift for value, shift in zip(values, shifted)])
 
@@ -692,7 +696,7 @@ def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapo
                                             "dim": dim, "padding": padding})
     return result
 
-@partial(jit_compile_linear, auxiliary_args="values_rhs, needed_shifts_rhs")
+# @partial(jit_compile_linear, auxiliary_args="values_rhs, needed_shifts_rhs")
 def dyadic_interpolate_lhs(x, values_rhs, needed_shifts_rhs, dim, padding):
     shifted = shift(x, needed_shifts_rhs, stack_dim=None, dims=[dim], padding=padding)
     return sum([value * shift for value, shift in zip(values_rhs, shifted)])
