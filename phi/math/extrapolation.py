@@ -1149,6 +1149,9 @@ class _NormalTangentialExtrapolation(Extrapolation):
         self.normal = normal
         self.tangential = tangential
 
+    def __hash__(self):
+        return hash(self.__class__)
+
     def to_dict(self) -> dict:
         return {
             'type': 'normal-tangential',
@@ -1188,6 +1191,26 @@ class _NormalTangentialExtrapolation(Extrapolation):
         from ._magic_ops import stack
         result = stack(result, value.shape.only('vector'))
         return result
+
+    def pad(self, value: Tensor, widths: dict, **kwargs) -> Tensor:
+        if isinstance(value, TensorStack):
+            assert value.stack_dim.name == 'vector', "the staggered dimension must be \'vector\' with normal-tangential extrapolation"
+            if not value.requires_broadcast:
+                return self.pad(value._cache(), widths)
+            inner_widths = {dim: w for dim, w in widths.items() if dim != value.vector}
+            tensors = []
+            if value.vector.item_names is not None:
+                vector_dims = value.vector.item_names
+            elif value.vector.size == value.shape.spatial_rank:
+                vector_dims = value.shape.spatial.names
+            else:
+                raise NotImplementedError
+            for component_name, component in zip(vector_dims, value.vector):
+                ext = combine_sides(**{dim: self.normal if component_name == dim else self.tangential for dim in value.shape.spatial.names})
+                tensors.append(ext.pad(component, inner_widths))
+            return TensorStack(tensors, value.stack_dim)
+        else:
+            return super().pad(value, widths, **kwargs)
 
     def __eq__(self, other):
         return isinstance(other, _NormalTangentialExtrapolation) and self.normal == other.normal and self.tangential == other.tangential

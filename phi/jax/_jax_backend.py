@@ -231,7 +231,8 @@ class JaxBackend(Backend):
         return jnp.arange(start, limit, delta, to_numpy_dtype(dtype))
 
     def pad(self, value, pad_width, mode='constant', constant_values=0):
-        assert mode in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'), mode
+        if mode not in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'):
+            return NotImplemented
         if mode == 'constant':
             constant_values = jnp.array(constant_values, dtype=value.dtype)
             return jnp.pad(value, pad_width, 'constant', constant_values=constant_values)
