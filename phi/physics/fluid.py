@@ -16,6 +16,8 @@ from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand
 from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
 
+from phi.jax.flow import *
+
 
 class Obstacle:
     """
@@ -96,6 +98,8 @@ def make_incompressible(velocity: GridType,
     # --- Linear solve ---
     velocity = apply_boundary_conditions(velocity, obstacles)
     div = divergence(velocity, scheme=scheme) * active
+    plot(div)
+    show()
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     if not input_velocity.extrapolation.is_flexible and all_active:

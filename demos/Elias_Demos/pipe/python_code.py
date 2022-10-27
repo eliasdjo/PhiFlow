@@ -53,15 +53,39 @@ class TestRun:
 
 
     def adp_high_ord(self, v, p):
-        adv_diff_press = advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12))) - v
-        adv_diff_press += (diffuse.finite_difference(v, visc, dt, scheme=Scheme(6, Solve('CG', 1e-12, 1e-12))) - v) / dt
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
+        vis.plot(v)
+        vis.show()
+
+        adv_diff_press = advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v
+        # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'])
+        # vis.show()
+
+        diff = (diffuse.finite_difference(v, visc, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / dt
+        # vis.plot(diff.vector['x'], diff.vector['y'])
+        # vis.show()
+        adv_diff_press += diff
+
+        # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'])
+        # vis.show()
+
+        press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
             x=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC),
             y=extrapolation.PERIODIC))
+        # vis.plot(press.vector['x'], press.vector['y'])
+        # vis.show()
+        adv_diff_press -= press
+
+        # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'])
+        # vis.show()
+
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=dt):
-        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4))
+        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
+        # vis.plot(v.vector['x'], v.vector['y'])
+        # vis.show()
+        # vis.plot(delta_p)
+        # vis.show()
         p += delta_p / dt_
         return v, p
 
@@ -84,7 +108,20 @@ class TestRun:
             y=extrapolation.PERIODIC))
 
         DOMAIN2 = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(x=extrapolation.SYMMETRIC, y=extrapolation.PERIODIC))
+
         velocity = StaggeredGrid(0, **DOMAIN)
+        vals_x = velocity.values.vector['x']
+        t = math.scatter(math.zeros(vals_x.shape.only('x')),
+                     tensor([2], instance('points')),
+                     tensor([1], instance('points')))
+        vals_x = vals_x + t
+        velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel('vector')))
+
+
+        # vis.plot(velocity)
+        # vis.plot(velocity.vector['x'], velocity.vector['y'])
+        # vis.show()
+
         pressure = CenteredGrid(0, **DOMAIN2)
 
         # pressure = CenteredGrid(partial(tgv_pressure, vis=visc, t=0), **DOMAIN)
@@ -106,8 +143,8 @@ class TestRun:
 
             velocity, pressure = timestepper(velocity, pressure)
 
-            np.savez(f"data/{self.name}", vx=np.array(vx_data), vy=np.array(vy_data),
-                     p=np.array(p_data), t_num=self.t_num, dt=dt, visc=visc, freq=freq)
+        np.savez(f"data/{self.name}", vx=np.array(vx_data), vy=np.array(vy_data),
+                 p=np.array(p_data), t_num=self.t_num, dt=dt, visc=visc, freq=freq)
 
         print()
 
@@ -129,7 +166,11 @@ class TestRun:
             vis.plot(tensor(vx[i], spatial('x'), spatial('y')), tensor(vy[i], spatial('x'), spatial('y')))
             vis.savefig(f"plots/{self.name}/{t}.jpg")
 
-tges = 10
-high_order = TestRun(tges, StaggeredGrid, "high_order", name="high_order")
-# high_order.run(t_num=100, freq=1)
-high_order.draw_plots()
+
+# high_order = TestRun(0, StaggeredGrid, "high_order", name="high_order")
+# high_order.run(t_num=1000, freq=100)
+# high_order.draw_plots()
+
+test = TestRun(0, StaggeredGrid, "high_order", name="test")
+test.run(t_num=1, freq=1, jit_compile=False)
+test.draw_plots()
