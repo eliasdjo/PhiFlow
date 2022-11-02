@@ -431,7 +431,7 @@ class JaxBackend(Backend):
             # return scipy.sparse.linalg.gmres(lin, y, tol=rtol, atol=atol, maxiter=max_iter)
             result = scipy.sparse.linalg.gmres(lin, y)[0]
             solve_res = Backend.linear_solve(self, 'CG', lin, jnp.zeros(y.shape), jnp.zeros(x0.shape), rtol, atol, max_iter, trj)
-            return SolveResult(method, result, solve_res.residual, solve_res.iterations, solve_res.function_evaluations,
+            return SolveResult(method, result, #fehler, -1, -1,
                                solve_res.converged, solve_res.diverged, solve_res.message)
         else:
             return Backend.linear_solve(self, method, lin, y, x0, rtol, atol, max_iter, trj)

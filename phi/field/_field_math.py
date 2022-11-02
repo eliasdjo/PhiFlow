@@ -165,6 +165,9 @@ def spatial_gradient(field: Grid,
         gradient_extrapolation = map(_ex_map_f(grad_ext_map), field.extrapolation)
 
     if type == CenteredGrid:
+        # ToDo if extrapolation == math.extrapolation.NONE, extend size by 1
+        # pad = 1 if extrapolation == math.extrapolation.NONE else 0
+        # bounds = Box(field.bounds.lower - field.dx, field.bounds.upper + field.dx) if extrapolation == math.extrapolation.NONE else field.bounds
         padded_components = [pad(field, {dim: base_widths}) for dim in field.shape.spatial.names]
     else:
         base_widths = (base_widths[0], base_widths[1]-1)
@@ -400,6 +403,9 @@ def divergence(field: Grid, scheme: Scheme = Scheme(2)) -> CenteredGrid:
     result_components = [component.with_bounds(field.bounds) for component in result_components]
     result_components = [component.with_extrapolation(map(_ex_map_f(output_map), field.extrapolation)) for component in result_components]
     result = sum(result_components)
+    # ToDo adjust bounds if extrapolation was NONE
+    #         if field.extrapolation == math.extrapolation.NONE:
+    #             result = result.with_bounds(Box(field.bounds.lower + field.dx, field.bounds.upper - field.dx))
     return result
 
 
