@@ -53,8 +53,8 @@ class TestRun:
 
 
     def adp_high_ord(self, v, p):
-        vis.plot(v)
-        vis.show()
+        # vis.plot(v)
+        # vis.show()
 
         adv_diff_press = advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v
         # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'])
@@ -103,11 +103,11 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        DOMAIN = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(
+        DOMAIN = dict(x=20, y=12, extrapolation=extrapolation.combine_sides(
             x=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC),
             y=extrapolation.PERIODIC))
 
-        DOMAIN2 = dict(x=50, y=32, extrapolation=extrapolation.combine_sides(x=extrapolation.SYMMETRIC, y=extrapolation.PERIODIC))
+        DOMAIN2 = dict(x=20, y=12, extrapolation=extrapolation.combine_sides(x=extrapolation.SYMMETRIC, y=extrapolation.PERIODIC))
 
         velocity = StaggeredGrid(0, **DOMAIN)
         vals_x = velocity.values.vector['x']

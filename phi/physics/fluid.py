@@ -98,8 +98,8 @@ def make_incompressible(velocity: GridType,
     # --- Linear solve ---
     velocity = apply_boundary_conditions(velocity, obstacles)
     div = divergence(velocity, scheme=scheme) * active
-    plot(div)
-    show()
+    # plot(div)
+    # show()
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     if not input_velocity.extrapolation.is_flexible and all_active:
@@ -206,8 +206,7 @@ def _pressure_extrapolation(vext: Extrapolation):
         return extrapolation.ZERO
     elif isinstance(vext, extrapolation.ConstantExtrapolation):
         return extrapolation.BOUNDARY
-    elif isinstance(vext, extrapolation._MixedExtrapolation):
-        return combine_sides(**{dim: (_pressure_extrapolation(lo), _pressure_extrapolation(hi)) for dim, (lo, hi) in vext.ext.items()})
+
     elif extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC):
         return extrapolation.SYMMETRIC
     else:
