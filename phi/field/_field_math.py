@@ -40,6 +40,7 @@ def bake_extrapolation(grid: GridType) -> GridType:
         raise ValueError(f"Not a valid grid: {grid}")
 
 
+
 def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2)) -> GridType:
     """
     Spatial Laplace operator for scalar grid.
@@ -56,7 +57,7 @@ def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2)) -> GridTy
     """
 
     axes_names = field.shape.only(axes).names
-    extrapol_map = {}
+    lap_ext_map = {}
     if not scheme.is_implicit:
         if scheme.order == 2:
                 values, needed_shifts = [1, -2, 1], (-1, 0, 1)
@@ -65,16 +66,13 @@ def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2)) -> GridTy
                 values, needed_shifts = [-1/12, 4/3, -5/2, 4/3, -1/12], (-2, -1, 0, 1, 2)
 
     else:
-        extrapol_map_rhs = {}
         if scheme.order == 6:
             values, needed_shifts = [3/44, 12/11, -51/22, 12/11, 3/44], (-2, -1, 0, 1, 2)
-            extrapol_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-
             values_rhs, needed_shifts_rhs = [2/11, 1, 2/11], (-1, 0, 1)
-            extrapol_map_rhs['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
 
     base_widths = (abs(min(needed_shifts)), max(needed_shifts))
-    field.with_extrapolation(map(_ex_map_f(extrapol_map), field.extrapolation))
+
+    lap_ext = map(_ex_map_f(lap_ext_map), field.extrapolation)
 
     padded_components = [pad(field, {dim: base_widths}) for dim in axes_names]
 
@@ -83,24 +81,31 @@ def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2)) -> GridTy
 
 
     if scheme.is_implicit:
-        result_components = stack(result_components, channel('laplacian'))
-        result_components.with_values(result_components.values._cache())
-        result_components = result_components.with_extrapolation(map(_ex_map_f(extrapol_map_rhs), field.extrapolation))
-        scheme.solve.x0 = result_components
-        result_components = solve_linear(_lhs_for_implicit_scheme, result_components, solve=scheme.solve,
-                                         f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
-                                        "stack_dim": channel('laplacian')})
-        result_components = unstack(result_components, 'laplacian')
-        extrapol_map = extrapol_map_rhs
+        result = stack(result_components, channel('laplacian'))
+        result = result.with_extrapolation(lap_ext)
+        if result.values.shape.is_uniform:
+            scheme.solve.x0 = result
+            result = solve_linear(_lhs_for_implicit_scheme, result, solve=scheme.solve,
+                                             f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
+                                                       "stack_dim": channel('laplacian')})
+        else:
+            result_components = unstack(result, 'vector')
+            final_components = []
+            for result_component in result_components:
+                scheme.solve.x0 = result_component
+                final_components.append(solve_linear(_lhs_for_implicit_scheme, result_component, solve=scheme.solve,
+                                                     f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
+                                                               "stack_dim": channel('laplacian')}))
+            result = StaggeredGrid(math.stack([component.values for component in final_components], channel('vector')),
+                                   bounds=field.bounds, extrapolation=lap_ext)
+        result_components = unstack(result, 'laplacian')
 
-    result_components = [component.with_bounds(field.bounds) for component in result_components]
-    result = sum(result_components)
-    result = result.with_extrapolation(map(_ex_map_f(extrapol_map), field.extrapolation))
+    result = sum([component.with_bounds(field.bounds) for component in result_components])
+    result = result.with_extrapolation(lap_ext)
 
     return result
 
-
-def spatial_gradient(field: CenteredGrid,
+def spatial_gradient(field: Grid,
                      gradient_extrapolation: Extrapolation = None,
                      type: type = CenteredGrid,
                      stack_dim: Shape = channel('vector'),
@@ -128,10 +133,7 @@ def spatial_gradient(field: CenteredGrid,
 
     """
 
-    if gradient_extrapolation == None:
-        gradient_extrapolation = field.extrapolation
-
-    extrapol_map = {}
+    grad_ext_map = {}
     if not scheme.is_implicit:
         if scheme.order == 2:
             if type == CenteredGrid:
@@ -145,25 +147,22 @@ def spatial_gradient(field: CenteredGrid,
             else:
                 values, needed_shifts = [1/24, -27/24, 27/24, -1/24], (-1, 0, 1, 2)
     else:
-        extrapol_map_rhs = {}
         if scheme.order == 6:
             if type == CenteredGrid:
                 values, needed_shifts = [-1/36, -14/18, 14/18, 1/36], (-2, -1, 1, 2)
                 values_rhs, needed_shifts_rhs = [1/3, 1, 1/3], (-1, 0, 1)
+                grad_ext_map['symmetric'] = ANTISYMMETRIC
+                grad_ext_map['reflect'] = ANTIREFLECT
 
             else:
                 values, needed_shifts = [-17/186, -63/62, 63/62, 17/186], (-1, 0, 1, 2)
-                extrapol_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-
                 values_rhs, needed_shifts_rhs = [9/62, 1, 9/62], (-1, 0, 1)
-                extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
 
 
     base_widths = (abs(min(needed_shifts)), max(needed_shifts))
-    field.with_extrapolation(map(_ex_map_f(extrapol_map), field.extrapolation))
 
-    if scheme.is_implicit:
-        gradient_extrapolation = map(_ex_map_f(extrapol_map_rhs), gradient_extrapolation)
+    if gradient_extrapolation is None:
+        gradient_extrapolation = map(_ex_map_f(grad_ext_map), field.extrapolation)
 
     if type == CenteredGrid:
         # ToDo if extrapolation == math.extrapolation.NONE, extend size by 1
@@ -187,13 +186,28 @@ def spatial_gradient(field: CenteredGrid,
     result = result.with_extrapolation(gradient_extrapolation)
 
     if scheme.is_implicit:
-        scheme.solve.x0 = result
-        result = result
-        result = solve_linear(_lhs_for_implicit_scheme, result, solve=scheme.solve,
-                              f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
-                                        "stack_dim": stack_dim, "staggered_output": type != CenteredGrid})
+        if result.values.shape.is_uniform:
+            scheme.solve.x0 = result
+            result = solve_linear(_lhs_for_implicit_scheme, result, solve=scheme.solve,
+                                  f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
+                                            "stack_dim": stack_dim, "staggered_output": type != CenteredGrid})
+        else:
+            result_components = unstack(result, 'vector')
+            final_components = []
+            for i, result_component in enumerate(result_components):
+                stack_dim = stack_dim if type is CenteredGrid else field.shape.spatial.names[i]
+                scheme.solve.x0 = result_component
+                test = _lhs_for_implicit_scheme(result_component, values_rhs, needed_shifts_rhs, stack_dim, type != CenteredGrid)
+                final_components.append(solve_linear(_lhs_for_implicit_scheme, result_component, solve=scheme.solve,
+                                          f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
+                                                    "stack_dim": stack_dim, "staggered_output": type != CenteredGrid}))
+            result = StaggeredGrid(math.stack([component.values for component in final_components], channel('vector')),
+                                   bounds=field.bounds, extrapolation=gradient_extrapolation)
+
 
     return result.with_bounds(field.bounds)
+
+
 
 def _ex_map_f(ext_dict: dict):
     def f(ext: Extrapolation):
@@ -201,17 +215,21 @@ def _ex_map_f(ext_dict: dict):
     return f
 
 
-@partial(jit_compile_linear, auxiliary_args="values_rhs, needed_shifts_rhs, stack_dim, staggered_output")
+# @partial(jit_compile_linear, auxiliary_args="values_rhs, needed_shifts_rhs, stack_dim, staggered_output")
 def _lhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, stack_dim, staggered_output=False):
     result = []
-    for dim, component in zip(x.shape.only(math.spatial).names, unstack(x, stack_dim.name)):
-        shifted = shift(component, needed_shifts_rhs, stack_dim=None, dims=dim)
-        result.append(sum([value * shift for value, shift in zip(values_rhs, shifted)]))
-
-    if staggered_output:
-        result = x.with_values(math.stack([component.values for component in result], channel('vector')))
+    if isinstance(stack_dim, str):
+        shifted = shift(x, needed_shifts_rhs, stack_dim=None, dims=stack_dim)
+        result = x.with_values(sum([value * shift for value, shift in zip(values_rhs, shifted)]).values)
     else:
-        result = stack(result, stack_dim)
+        for dim, component in zip(x.shape.only(math.spatial).names, unstack(x, stack_dim.name)):
+            shifted = shift(component, needed_shifts_rhs, stack_dim=None, dims=dim)
+            result.append(sum([value * shift for value, shift in zip(values_rhs, shifted)]))
+
+        if staggered_output:
+            result = x.with_values(math.stack([component.values for component in result], channel('vector')))
+        else:
+            result = stack(result, stack_dim)
 
     return result
 
@@ -326,6 +344,7 @@ def divergence(field: Grid, scheme: Scheme = Scheme(2)) -> CenteredGrid:
     """
 
     extrapol_map = {}
+    output_map = {}
     if not scheme.is_implicit:
         if scheme.order == 2:
             if isinstance(field, CenteredGrid):
@@ -341,8 +360,9 @@ def divergence(field: Grid, scheme: Scheme = Scheme(2)) -> CenteredGrid:
     else:
         extrapol_map_rhs = {}
         if scheme.order == 6:
-            extrapol_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-            extrapol_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
+            extrapol_map_rhs['symmetric'] = REFLECT
+            extrapol_map_rhs['antisymmetric'] = ANTIREFLECT
+            output_map['reflect'] = SYMMETRIC
 
             if isinstance(field, CenteredGrid):
                 values, needed_shifts = [-1 / 36, -14 / 18, 14 / 18, 1 / 36], (-2, -1, 1, 2)
@@ -371,15 +391,25 @@ def divergence(field: Grid, scheme: Scheme = Scheme(2)) -> CenteredGrid:
     result_components = [sum([value * shift for value, shift in zip(values, shifted_component)]) / field.dx.vector[dim] for shifted_component, dim in zip(shifted_components, field.shape.spatial.names)]
 
     if scheme.is_implicit:
-        result_components = stack(result_components, channel('vector'))
-        result_components.with_values(result_components.values._cache())
-        scheme.solve.x0 = field
-        result_components = solve_linear(_lhs_for_implicit_scheme, result_components, solve=scheme.solve,
+        result = result_components[0].with_values(math.stack([comp.values for comp in result_components], channel('vector')))
+        result = result.with_extrapolation(map(_ex_map_f(extrapol_map_rhs), field.extrapolation))
+        scheme.solve.x0 = result
+        result_components = solve_linear(_lhs_for_implicit_scheme, result, solve=scheme.solve,
                                          f_kwargs={"values_rhs": values_rhs, "needed_shifts_rhs": needed_shifts_rhs,
                                         "stack_dim": channel('vector')})
         result_components = unstack(result_components, 'vector')
+        # final_components = []
+        # for result_component in result_components:
+        #     scheme.solve.x0 = result_component
+        #     test = _lhs_for_implicit_scheme(result_component, values_rhs, needed_shifts_rhs, channel('laplacian'))
+        #     final_components.append(solve_linear(_lhs_for_implicit_scheme, result_component, solve=scheme.solve,
+        #                                          f_kwargs={"values_rhs": values_rhs,
+        #                                                    "needed_shifts_rhs": needed_shifts_rhs,
+        #                                                    "stack_dim": channel('laplacian')}))
+        # result_components = final_components
 
     result_components = [component.with_bounds(field.bounds) for component in result_components]
+    result_components = [component.with_extrapolation(map(_ex_map_f(output_map), field.extrapolation)) for component in result_components]
     result = sum(result_components)
     # ToDo adjust bounds if extrapolation was NONE
     #         if field.extrapolation == math.extrapolation.NONE:
