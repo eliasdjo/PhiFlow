@@ -5,8 +5,8 @@ Simulates a viscous fluid flowing through a horizontal pipe.
 import os
 from phi.jax.flow import *
 
-dt = 1 / 4
-visc = 0.1
+dt = 0.01
+visc = 0.01
 
 math.set_global_precision(64)
 
@@ -51,8 +51,8 @@ class TestRun:
         rhs_1 = self.adp_high_ord(v_1, p_1)
         v_2_old = velocity + (dt / 2) * rhs_1
         v_2, p_2 = self.pt_high_ord(v_2_old, p_1, dt / 2)
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 1')
-        # vis.show()
+        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 1')
+        vis.show()
         # vis.plot(pressure, title=f'press 1')
         # vis.show()
 
@@ -87,23 +87,31 @@ class TestRun:
 
     def adp_high_ord(self, v, p):
 
-        adv_diff_press = advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v
+        adv_diff_press = (advect.finite_difference(v, v, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / dt
+
         # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'], title=f'adv')
         # vis.show()
+
         diff = (diffuse.finite_difference(v, visc, dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / dt
+
         # vis.plot(diff.vector['x'], diff.vector['y'], title=f'diff')
         # vis.show()
+
         adv_diff_press += diff
         press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
             y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC)))
+        # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
+        #                                gradient_extrapolation=extrapolation.PERIODIC)
+
         # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
         # vis.show()
+
         adv_diff_press -= press
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=dt):
-        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('CG', 1e-5, 1e-5))
+        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
         p += delta_p / dt_
         return v, p
 
@@ -121,17 +129,22 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        DOMAIN = dict(bounds=Box['x,y', 0:2 * math.pi, 0:2 * math.pi], x=10, y=10, extrapolation=extrapolation.combine_sides(
+        DOMAIN = dict(bounds=Box['x,y', 0:50, 0:50], x=50, y=20, extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
             y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC)))
 
-        DOMAIN2 = dict(bounds=Box['x,y', 0:2 * math.pi, 0:2 * math.pi], x=10, y=10, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+        DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+
+        # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
+
+        # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
+
 
         velocity = StaggeredGrid(0, **DOMAIN)
         vals_x = velocity.values.vector['x']
         t = math.scatter(math.zeros(vals_x.shape.only('x')),
-                     tensor([2], instance('points')),
-                     tensor([1], instance('points')))
+                     tensor([5], instance('points')),
+                     tensor([5], instance('points')))
         vals_x = vals_x + t
 
         velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel(vector='x,y')))
@@ -197,10 +210,15 @@ class TestRun:
             vis.close()
 
 
-# high_order = TestRun(0, StaggeredGrid, "high_order", name="high_order")
-# high_order.run(t_num=1000, freq=100)
-# high_order.draw_plots()
 
-test = TestRun(0, StaggeredGrid, "high_order", name="test")
-test.run(t_num=10, freq=1, jit_compile=True)
+test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_middle_higher")
+test.run(t_num=100, freq=1, jit_compile=True)
 test.draw_plots()
+
+# test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_left_larger_periodic_low_vis_smaller_time")
+# test.run(t_num=10, freq=1, jit_compile=True)
+# test.draw_plots()
+#
+# test = TestRun(0, StaggeredGrid, "high_order", name="test")
+# test.run(t_num=1, freq=1, jit_compile=False)
+# test.draw_plots()
