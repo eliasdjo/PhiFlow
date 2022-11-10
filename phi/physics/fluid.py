@@ -16,6 +16,7 @@ from ..math import extrapolation, NUMPY, batch, shape, non_channel, expand
 from ..math._magic_ops import copy_with
 from ..math.extrapolation import combine_sides, Extrapolation
 
+from phi import vis
 
 class Obstacle:
     """
@@ -96,6 +97,8 @@ def make_incompressible(velocity: GridType,
     # --- Linear solve ---
     velocity = apply_boundary_conditions(velocity, obstacles)
     div = divergence(velocity, scheme=scheme) * active
+    # vis.plot(div, title=f'div')
+    # vis.show()
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     if not input_velocity.extrapolation.is_flexible and all_active:
@@ -107,8 +110,13 @@ def make_incompressible(velocity: GridType,
     if batch(math.merge_shapes(*obstacles)).without(batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
     pressure = math.solve_linear(masked_laplace, f_args=[hard_bcs, active],  f_kwargs={"scheme": scheme}, y=div, solve=solve)
+    # vis.plot(pressure, title=f'delta p')
+    # vis.show()
+
     # --- Subtract grad p ---
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), scheme=scheme) * hard_bcs
+    # vis.plot(grad_pressure.vector['x'], grad_pressure.vector['y'], title=f'delta p grad')
+    # vis.show()
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
     return velocity, pressure
 
@@ -200,6 +208,10 @@ def _pressure_extrapolation(vext: Extrapolation):
         return extrapolation.ZERO
     elif isinstance(vext, extrapolation.ConstantExtrapolation):
         return extrapolation.BOUNDARY
+    elif isinstance(vext, extrapolation._MixedExtrapolation):
+        return combine_sides(**{dim: (_pressure_extrapolation(lo), _pressure_extrapolation(hi)) for dim, (lo, hi) in vext.ext.items()})
+    elif extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC):
+        return extrapolation.SYMMETRIC
     else:
         return extrapolation.map(_pressure_extrapolation, vext)
 
@@ -208,6 +220,8 @@ def _accessible_extrapolation(vext: Extrapolation):
     """ Determine whether outside cells are accessible based on the velocity extrapolation. """
     if vext == extrapolation.PERIODIC:
         return extrapolation.PERIODIC
+    if vext == extrapolation.REFLECT:
+        return extrapolation.REFLECT
     elif vext == extrapolation.BOUNDARY:
         return extrapolation.ONE
     elif isinstance(vext, extrapolation.ConstantExtrapolation):

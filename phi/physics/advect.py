@@ -98,23 +98,29 @@ def finite_difference(grid: Grid,
         Advected grid of same type as `grid`
     """
 
+    # field_components = unstack(grid, 'vector')
+    # grad_list = [spatial_gradient(field_component, stack_dim=math.channel('gradient'), scheme=scheme) for
+    #              field_component in field_components]
+    # grad_grid = grid.with_values(math.stack([component.values for component in grad_list], math.channel('vector')))
+    # velocity._scheme = True
+    # ammounts = [grad * vel.at(grad, scheme=scheme) for grad, vel in
+    #             zip(unstack(grad_grid, dim='gradient'), unstack(velocity, dim='vector'))]
+    # ammount = sum(ammounts)
+
+    grad = spatial_gradient(grid, stack_dim=math.channel('gradient'), scheme=scheme)
     if isinstance(grid, StaggeredGrid):
-        field_components = unstack(grid, 'vector')
-        grad_list = [spatial_gradient(field_component, stack_dim=math.channel('gradient'), scheme=scheme) for
-                     field_component in field_components]
-        grad_grid = grid.with_values(math.stack([component.values for component in grad_list], math.channel('vector')))
-        velocity._scheme = True
-        ammounts = [grad * vel.at(grad, scheme=scheme) for grad, vel in
-                    zip(unstack(grad_grid, dim='gradient'), unstack(velocity, dim='vector'))]
+        # ammounts = [grad * vel.at(grad, scheme=scheme)
+        #             for grad, vel in zip(unstack(grad, dim='gradient'), unstack(velocity, dim='vector'))]
+        ammounts = []
+        for grad, vel in zip(unstack(grad, dim='gradient'), unstack(velocity, dim='vector')):
+            ammounts.append(grad * vel.at(grad, scheme=scheme))
         ammount = sum(ammounts)
     else:
-        grad = spatial_gradient(grid, stack_dim=math.channel('gradient'), scheme=scheme)
         velocity = stack(unstack(velocity, dim='vector'), dim=math.channel('gradient'))
         ammounts = velocity * grad
         ammount = sum(unstack(ammounts, dim='gradient'))
 
-    return grid - dt * ammount
-
+    return grid - dt * ammount.with_extrapolation(grid.extrapolation)
 
 def points(field: PointCloud, velocity: Field, dt: float, integrator=euler):
     """

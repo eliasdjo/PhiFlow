@@ -231,7 +231,8 @@ class JaxBackend(Backend):
         return jnp.arange(start, limit, delta, to_numpy_dtype(dtype))
 
     def pad(self, value, pad_width, mode='constant', constant_values=0):
-        assert mode in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'), mode
+        if mode not in ('constant', 'symmetric', 'periodic', 'reflect', 'boundary'):
+            return NotImplemented
         if mode == 'constant':
             constant_values = jnp.array(constant_values, dtype=value.dtype)
             return jnp.pad(value, pad_width, 'constant', constant_values=constant_values)
@@ -428,6 +429,12 @@ class JaxBackend(Backend):
     def linear_solve(self, method: str, lin, y, x0, rtol, atol, max_iter, trj: bool) -> SolveResult or List[SolveResult]:
         if method == 'auto' and not trj and not self.is_available(y):
             return self.conjugate_gradient(lin, y, x0, rtol, atol, max_iter, trj)
+        elif method == 'GMRES':
+            # return scipy.sparse.linalg.gmres(lin, y, tol=rtol, atol=atol, maxiter=max_iter)
+            result = scipy.sparse.linalg.gmres(lin, y)[0]
+            solve_res = Backend.linear_solve(self, 'CG', lin, jnp.zeros(y.shape), jnp.zeros(x0.shape), rtol, atol, max_iter, trj)
+            return SolveResult(method, result, solve_res.residual, solve_res.iterations, solve_res.function_evaluations,
+                               solve_res.converged, solve_res.diverged, solve_res.message)
         else:
             return Backend.linear_solve(self, method, lin, y, x0, rtol, atol, max_iter, trj)
 
