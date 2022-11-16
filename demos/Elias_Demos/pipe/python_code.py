@@ -129,11 +129,11 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=50, y=50, extrapolation=extrapolation.combine_sides(
+        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=10, y=10, extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
             y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.SYMMETRIC)))
 
-        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=50, y=50, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=10, y=10, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
@@ -203,18 +203,18 @@ class TestRun:
         for i in range(int((t_num + 1) / freq)):
             t = tensor(i * freq * dt)
             f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
-            timestamp = '{:07.4f}'.format(t)
+            timestamp = '{:07.4f}'.format(float(t))
             vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
             vis.close()
             f2 = vis.plot(vel[i].vector[0], vel[i].vector[1], title=f'{i}: vel fields')._obj
-            timestamp = '{:07.4f}'.format(t)
+            timestamp = '{:07.4f}'.format(float(t))
             vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
             vis.close()
 
 
 
 test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
-# test.run(t_num=100, freq=3, jit_compile=True)
+# test.run(t_num=10, freq=3, jit_compile=True)
 test.draw_plots()
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_left_larger_periodic_low_vis_smaller_time")
