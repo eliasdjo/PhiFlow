@@ -203,16 +203,18 @@ class TestRun:
         for i in range(int((t_num + 1) / freq)):
             t = tensor(i * freq * dt)
             f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
-            vis.savefig(f"plots/{self.name}/v_and_p_{t}.jpg", f1)
+            timestamp = '{:07.4f}'.format(t)
+            vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
             vis.close()
             f2 = vis.plot(vel[i].vector[0], vel[i].vector[1], title=f'{i}: vel fields')._obj
-            vis.savefig(f"plots/{self.name}/v_fields_{t}.jpg", f2)
+            timestamp = '{:07.4f}'.format(t)
+            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
             vis.close()
 
 
 
 test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
-test.run(t_num=100, freq=3, jit_compile=True)
+# test.run(t_num=100, freq=3, jit_compile=True)
 test.draw_plots()
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_left_larger_periodic_low_vis_smaller_time")

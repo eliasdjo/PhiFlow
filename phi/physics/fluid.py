@@ -222,6 +222,8 @@ def _accessible_extrapolation(vext: Extrapolation):
         return extrapolation.PERIODIC
     if vext == extrapolation.REFLECT:
         return extrapolation.REFLECT
+    if vext == extrapolation.ANTIREFLECT:
+        return extrapolation.ANTIREFLECT
     elif vext == extrapolation.BOUNDARY:
         return extrapolation.ONE
     elif isinstance(vext, extrapolation.ConstantExtrapolation):
