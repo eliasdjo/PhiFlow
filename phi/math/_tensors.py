@@ -1427,9 +1427,6 @@ class TensorStack(Tensor):
                 self._cached = TensorStack(stacked, non_uniform_dim)
         return self._cached
 
-    def all(self):
-        return all([tensor.all for tensor in self._tensors])
-
     @property
     def dtype(self):
         return combine_types(*[t.dtype for t in self._tensors])
