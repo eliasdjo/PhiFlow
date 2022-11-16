@@ -5,7 +5,7 @@ Simulates a viscous fluid flowing through a horizontal pipe.
 import os
 from phi.jax.flow import *
 
-dt = 0.01
+dt = 0.0025
 visc = 0.01
 
 math.set_global_precision(64)
@@ -100,7 +100,7 @@ class TestRun:
         adv_diff_press += diff
         press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.ANTISYMMETRIC)))
+            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.SYMMETRIC)))
         # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
         #                                gradient_extrapolation=extrapolation.PERIODIC)
 
@@ -129,11 +129,11 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        DOMAIN = dict(bounds=Box['x,y', 0:50, 0:50], x=50, y=20, extrapolation=extrapolation.combine_sides(
+        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=50, y=50, extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC)))
+            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.SYMMETRIC)))
 
-        DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=50, y=50, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
@@ -211,8 +211,8 @@ class TestRun:
 
 
 
-test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_middle_higher")
-test.run(t_num=100, freq=1, jit_compile=True)
+test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
+test.run(t_num=100, freq=3, jit_compile=True)
 test.draw_plots()
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_left_larger_periodic_low_vis_smaller_time")
