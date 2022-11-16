@@ -51,8 +51,8 @@ class TestRun:
         rhs_1 = self.adp_high_ord(v_1, p_1)
         v_2_old = velocity + (dt / 2) * rhs_1
         v_2, p_2 = self.pt_high_ord(v_2_old, p_1, dt / 2)
-        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 1')
-        vis.show()
+        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 1')
+        # vis.show()
         # vis.plot(pressure, title=f'press 1')
         # vis.show()
 
@@ -100,7 +100,7 @@ class TestRun:
         adv_diff_press += diff
         press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.SYMMETRIC)))
+            y=extrapolation.combine_by_direction(extrapolation.REFLECT, extrapolation.ANTISYMMETRIC)))
         # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
         #                                gradient_extrapolation=extrapolation.PERIODIC)
 
@@ -111,7 +111,7 @@ class TestRun:
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=dt):
-        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
+        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('CG', 1e-5, 1e-5))
         p += delta_p / dt_
         return v, p
 
