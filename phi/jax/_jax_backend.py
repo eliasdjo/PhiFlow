@@ -432,9 +432,14 @@ class JaxBackend(Backend):
         elif method == 'GMRES':
             # return scipy.sparse.linalg.gmres(lin, y, tol=rtol, atol=atol, maxiter=max_iter)
             result = scipy.sparse.linalg.gmres(lin, y)[0]
-            solve_res = Backend.linear_solve(self, 'CG', lin, jnp.zeros(y.shape), jnp.zeros(x0.shape), rtol, atol, max_iter, trj)
-            return SolveResult(method, result, solve_res.residual, solve_res.iterations, solve_res.function_evaluations,
-                               solve_res.converged, solve_res.diverged, solve_res.message)
+            residual = lin(result) - y
+            residual_squared = self.sum(residual ** 2, -1, keepdims=True)
+            tolerance_sq = self.maximum(rtol ** 2 * self.sum(y ** 2, -1), atol ** 2)
+            diverged = self.any(~self.isfinite(result), axis=(1,))
+            converged = self.all(residual_squared <= tolerance_sq, axis=(1,))
+
+            # solve_res = Backend.linear_solve(self, 'CG', lin, jnp.zeros(y.shape), jnp.zeros(x0.shape), rtol, atol, max_iter, trj)
+            return SolveResult(method, result, lin(result) - y, jnp.array([0]), jnp.array([0]), converged, diverged, "")
         else:
             return Backend.linear_solve(self, method, lin, y, x0, rtol, atol, max_iter, trj)
 

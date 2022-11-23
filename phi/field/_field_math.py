@@ -66,7 +66,8 @@ def laplace(field: GridType, axes=spatial, scheme: Scheme = Scheme(2), weights: 
                 values, needed_shifts = [1, -2, 1], (-1, 0, 1)
 
         elif scheme.order == 4:
-                values, needed_shifts = [-1/12, 4/3, -5/2, 4/3, -1/12], (-2, -1, 0, 1, 2)
+                # values, needed_shifts = [-1/12, 4/3, -5/2, 4/3, -1/12], (-2, -1, 0, 1, 2)
+                values, needed_shifts = [1/576, -54/576, 783/576, -1460/576, 783/576, 1/576], (-3, -2, -1, 0, 1, 2, 3)
 
     else:
         if scheme.order == 6:

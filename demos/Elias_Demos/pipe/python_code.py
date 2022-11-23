@@ -100,7 +100,7 @@ class TestRun:
         adv_diff_press += diff
         press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
             x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.SYMMETRIC)))
+            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
         # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
         #                                gradient_extrapolation=extrapolation.PERIODIC)
 
@@ -119,7 +119,7 @@ class TestRun:
     def run(self, jit_compile=True, t_num=0, freq=100):
         print(f"run {self.name}:")
 
-        os.mkdir(f"data/{self.name}")
+        # os.mkdir(f"data/{self.name}")
 
         if jit_compile:
             timestepper = math.jit_compile(self.timestep)
@@ -129,11 +129,15 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=10, y=10, extrapolation=extrapolation.combine_sides(
-            x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.SYMMETRIC)))
+        # DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(
+        #     x=extrapolation.PERIODIC,
+        #     y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
+        #
+        # DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
 
-        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=10, y=10, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.PERIODIC)
+
+        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.PERIODIC)
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
@@ -150,7 +154,18 @@ class TestRun:
         velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel(vector='x,y')))
         pressure = CenteredGrid(0, **DOMAIN2)
 
-        velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
+        # vis.plot(velocity, pressure, title=f'vel and press')
+        # vis.show()
+        # vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
+        # vis.show()
+
+        velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
+        vis.plot(solveinfo.residual, title=f'residual')
+        vis.show()
+        vis.plot(pressure, title=f'pressure')
+        vis.show()
+        vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
+        vis.show()
 
         # velocity = StaggeredGrid(tgv_velocity, **DOMAIN)
         # pressure = CenteredGrid(tgv_pressure, **DOMAIN2)
@@ -213,9 +228,9 @@ class TestRun:
 
 
 
-test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
-# test.run(t_num=10, freq=3, jit_compile=True)
-test.draw_plots()
+# test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
+# # test.run(t_num=10, freq=3, jit_compile=True)
+# test.draw_plots()
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="test_with_init_vel_left_larger_periodic_low_vis_smaller_time")
 # test.run(t_num=10, freq=1, jit_compile=True)
@@ -223,4 +238,8 @@ test.draw_plots()
 #
 # test = TestRun(0, StaggeredGrid, "high_order", name="test")
 # test.run(t_num=1, freq=1, jit_compile=False)
+# test.draw_plots()
+
+test = TestRun(0, StaggeredGrid, "high_order", name="tackle_inital_make_incomp")
+test.run(t_num=0, freq=3, jit_compile=True)
 # test.draw_plots()

@@ -97,8 +97,8 @@ def make_incompressible(velocity: GridType,
     # --- Linear solve ---
     velocity = apply_boundary_conditions(velocity, obstacles)
     div = divergence(velocity, scheme=scheme) * active
-    # vis.plot(div, title=f'div')
-    # vis.show()
+    vis.plot(div, title=f'div')
+    vis.show()
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     if not input_velocity.extrapolation.is_flexible and all_active:
@@ -109,16 +109,23 @@ def make_incompressible(velocity: GridType,
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
     if batch(math.merge_shapes(*obstacles)).without(batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
-    pressure = math.solve_linear(masked_laplace, f_args=[hard_bcs, active],  f_kwargs={"scheme": scheme}, y=div, solve=solve)
+
+    with math.SolveTape() as solves:
+        pressure = math.solve_linear(masked_laplace, f_args=[hard_bcs, active],  f_kwargs={"scheme": scheme}, y=div, solve=solve)
+    solveinfo = solves[solve]
     # vis.plot(pressure, title=f'delta p')
     # vis.show()
 
     # --- Subtract grad p ---
-    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), scheme=scheme) * hard_bcs
+    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), scheme=scheme) * hard_bcs#
+    vis.plot(divergence(grad_pressure, scheme=scheme), title=f'div grad_pressure')
+    vis.show()
+    vis.plot(divergence(grad_pressure, scheme=scheme) - div, title=f'div grad_pressure and div difference')
+    vis.show()
     # vis.plot(grad_pressure.vector['x'], grad_pressure.vector['y'], title=f'delta p grad')
     # vis.show()
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
-    return velocity, pressure
+    return velocity, pressure, solveinfo
 
 
 @math.jit_compile_linear  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
