@@ -129,15 +129,11 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        # DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(
-        #     x=extrapolation.PERIODIC,
-        #     y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
-        #
-        # DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(
+            x=extrapolation.PERIODIC,
+            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
 
-        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.PERIODIC)
-
-        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.PERIODIC)
+        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=100, y=100, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
