@@ -5,6 +5,7 @@ from typing import List, Callable, Tuple
 
 import jax
 import jax.numpy as jnp
+import scipy as scipy2
 import jax.scipy as scipy
 import numpy as np
 from jax import random
@@ -432,6 +433,8 @@ class JaxBackend(Backend):
         elif method == 'GMRES':
             # return scipy.sparse.linalg.gmres(lin, y, tol=rtol, atol=atol, maxiter=max_iter)
             result = scipy.sparse.linalg.gmres(lin, y)[0]
+            # result = scipy2.sparse.linalg.gmres(lin, y)[0]
+
             residual = lin(result) - y
             residual_squared = self.sum(residual ** 2, -1, keepdims=True)
             tolerance_sq = self.maximum(rtol ** 2 * self.sum(y ** 2, -1), atol ** 2)

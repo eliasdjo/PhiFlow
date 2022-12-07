@@ -1386,6 +1386,9 @@ class TensorStack(Tensor):
 
     """
 
+    def all(self):
+        return all([tensor.all for tensor in self._tensors])
+
     def __init__(self, components: tuple or list, stack_dim: Shape):
         assert isinstance(stack_dim, Shape) and stack_dim.rank == 1, f"stack_dim must be a single-dimension Shape object but got {type(stack_dim)}"
         for t in components:
