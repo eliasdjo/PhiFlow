@@ -237,6 +237,11 @@ small_test = [5]
 # pt_phi_flow = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "phi_flow")
 # pt_phi_flow.run(jit_compile=True)
 # pt_phi_flow.calc_errors(relative_error=True)
+
+
+pt_phi_flow = TestRun(small_test, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
+pt_phi_flow.run(jit_compile=True)
+pt_phi_flow.calc_errors(relative_error=True)
 #
 #
 # pt_phi_flow_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "phi_flow_stagg")
@@ -266,9 +271,9 @@ small_test = [5]
 # high_order.run(jit_compile=False)
 # high_order.calc_errors(relative_error=True)
 
-high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
-high_order_stagg.run(jit_compile=False)
-high_order_stagg.calc_errors(relative_error=True)
+# high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
+# high_order_stagg.run(jit_compile=False)
+# high_order_stagg.calc_errors(relative_error=True)
 
 
 print("done")
