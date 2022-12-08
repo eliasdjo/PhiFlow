@@ -141,7 +141,7 @@ class TestRun:
     def adp_mid_ord(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, self.dt, scheme=Scheme(4)) - v) / self.dt
         adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt, scheme=Scheme(4)) - v) / self.dt
-        adv_diff_press -= adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
         return adv_diff_press
 
@@ -156,7 +156,7 @@ class TestRun:
     def adp_low_ord(self, v, p):
         adv_diff_press = advect.finite_difference(v, v, self.dt) - v
         adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt) - v) / self.dt
-        adv_diff_press -= adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)],
                                                            channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
@@ -172,7 +172,7 @@ class TestRun:
     def adp_phi_flow(self, v, p):
         adv_diff_press = (advect.semi_lagrangian(v, v, self.dt) - v) / self.dt
         adv_diff_press += (diffuse.explicit(v, self.vis, self.dt) - v) / self.dt
-        adv_diff_press -= adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
 
         return adv_diff_press
@@ -243,7 +243,7 @@ class TestRun:
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
-        solver_string = 'GMRES' if self.order == 'high' else 'CG'
+        solver_string = 'GMRES' if self.order == 'phi' else 'GMRES'
         velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
         velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
         velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
@@ -446,64 +446,131 @@ class TestRun:
 # -------------------------------------------------------------------------------------------------------------------
 
 
-test = TestRun(0, StaggeredGrid, "phi", 10, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015")
+# test = TestRun(0, StaggeredGrid, "phi", 10, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015")
+# test.run(t_num=20000, freq=100, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+
+# test = TestRun(0, StaggeredGrid, "phi", 25, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015")
+# test.run(t_num=20000, freq=100, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# test = TestRun(0, StaggeredGrid, "phi", 50, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015")
+# test.run(t_num=20000, freq=100, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# # test = TestRun(0, StaggeredGrid, "phi", 100, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re100_dp0.01_vi0.01_dt0.0015")
+# # test.run(t_num=20000, freq=100, jit_compile=True)
+# # test.draw_plots()
+# # test.more_plots()
+#
+#
+# test = TestRun(0, StaggeredGrid, "phi", 10, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# test = TestRun(0, StaggeredGrid, "phi", 25, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# test = TestRun(0, StaggeredGrid, "phi", 50, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# # test = TestRun(0, StaggeredGrid, "phi", 100, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re100_dp0.01_vi0.003_dt0.0005")
+# # test.run(t_num=60000, freq=300, jit_compile=True)
+# # test.draw_plots()
+# # test.more_plots()
+#
+#
+# test = TestRun(0, StaggeredGrid, "phi", 10, 0.05, 0.01, 0.0003, name="phiPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# test = TestRun(0, StaggeredGrid, "phi", 25, 0.05, 0.01, 0.0003, name="phiPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# test = TestRun(0, StaggeredGrid, "phi", 50, 0.05, 0.01, 0.0003, name="phiPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003")
+# test.run(t_num=150000, freq=750, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
+#
+# # test = TestRun(0, StaggeredGrid, "phi", 100, 0.05, 0.01, 0.0003, name="phiPoiseuille_flow_6_re100_dp0.05_vi0.01_dt0.0003")
+# # test.run(t_num=100000, freq=500, jit_compile=True)
+# # test.draw_plots()
+# # test.more_plots()
+
+
+
+# ----------------------------------------------------------------------
+
+
+test = TestRun(0, StaggeredGrid, "low", 10, 0.01, 0.01, 0.0015, name="lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015")
 test.run(t_num=20000, freq=100, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 25, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015")
+test = TestRun(0, StaggeredGrid, "low", 25, 0.01, 0.01, 0.0015, name="lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015")
 test.run(t_num=20000, freq=100, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 50, 0.01, 0.01, 0.0015, name="phiPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015")
+test = TestRun(0, StaggeredGrid, "low", 50, 0.01, 0.01, 0.0015, name="lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015")
 test.run(t_num=20000, freq=100, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-# test = TestRun(0, StaggeredGrid, "phi", 100, 0.01, 0.01, 0.0015, name="Poiseuille_flow_6_re100_dp0.01_vi0.01_dt0.0015")
+# test = TestRun(0, StaggeredGrid, "low", 100, 0.01, 0.01, 0.0015, name="lowPoiseuille_flow_6_re100_dp0.01_vi0.01_dt0.0015")
 # test.run(t_num=20000, freq=100, jit_compile=True)
 # test.draw_plots()
 # test.more_plots()
 
 
-test = TestRun(0, StaggeredGrid, "phi", 10, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005")
+test = TestRun(0, StaggeredGrid, "low", 10, 0.01, 0.003, 0.0005, name="lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 25, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005")
+test = TestRun(0, StaggeredGrid, "low", 25, 0.01, 0.003, 0.0005, name="lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 50, 0.01, 0.003, 0.0005, name="phiPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005")
+test = TestRun(0, StaggeredGrid, "low", 50, 0.01, 0.003, 0.0005, name="lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-# test = TestRun(0, StaggeredGrid, "phi", 100, 0.01, 0.003, 0.0005, name="Poiseuille_flow_6_re100_dp0.01_vi0.003_dt0.0005")
+# test = TestRun(0, StaggeredGrid, "low", 100, 0.01, 0.003, 0.0005, name="lowPoiseuille_flow_6_re100_dp0.01_vi0.003_dt0.0005")
 # test.run(t_num=60000, freq=300, jit_compile=True)
 # test.draw_plots()
 # test.more_plots()
 
 
-test = TestRun(0, StaggeredGrid, "phi", 10, 0.05, 0.01, 0.0003, name="Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
+test = TestRun(0, StaggeredGrid, "low", 10, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 25, 0.05, 0.01, 0.0003, name="Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003")
+test = TestRun(0, StaggeredGrid, "low", 25, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-test = TestRun(0, StaggeredGrid, "phi", 50, 0.05, 0.01, 0.0003, name="Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003")
+test = TestRun(0, StaggeredGrid, "low", 50, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003")
 test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
-# test = TestRun(0, StaggeredGrid, "phi_order", 100, 0.05, 0.01, 0.0003, name="Poiseuille_flow_6_re100_dp0.05_vi0.01_dt0.0003")
+# test = TestRun(0, StaggeredGrid, "low", 100, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re100_dp0.05_vi0.01_dt0.0003")
 # test.run(t_num=100000, freq=500, jit_compile=True)
 # test.draw_plots()
 # test.more_plots()
