@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 # ]
 
 #
-prefix = "tgv_accuracy/errors/"
+prefix = "tgv_accuracy/errors_f/"
 names = [
     "phi_flow", "phi_flow_stagg",
     "low_order", "low_order_stagg",

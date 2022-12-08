@@ -351,17 +351,17 @@ class TestRun:
 
 
 test = TestRun(0, StaggeredGrid, "high_order", 10, 0.01, 0.003, 0.0005, name="Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005")
-test.run(t_num=90000, freq=450, jit_compile=True)
+test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
 test = TestRun(0, StaggeredGrid, "high_order", 25, 0.01, 0.003, 0.0005, name="Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005")
-test.run(t_num=90000, freq=450, jit_compile=True)
+test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
 test = TestRun(0, StaggeredGrid, "high_order", 50, 0.01, 0.003, 0.0005, name="Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005")
-test.run(t_num=90000, freq=450, jit_compile=True)
+test.run(t_num=150000, freq=750, jit_compile=True)
 test.draw_plots()
 test.more_plots()
 
