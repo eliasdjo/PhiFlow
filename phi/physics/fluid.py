@@ -148,7 +148,7 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     Returns:
         `CenteredGrid`
     """
-    if scheme.order == 2 and not scheme.is_implicit and False:
+    if scheme.order == 2 and not scheme.is_implicit:
         grad = spatial_gradient(pressure, extrapolation.NONE, type=type(hard_bcs))
         valid_grad = grad * field.bake_extrapolation(hard_bcs)
         div = divergence(valid_grad)
