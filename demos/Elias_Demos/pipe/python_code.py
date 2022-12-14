@@ -352,7 +352,7 @@ class TestRun:
         print('done')
 
 
-def overview_plot(names_block):
+def overview_plot(names_block, block_names=None, title=''):
 
     lines_block = []
     for names in names_block:
@@ -372,7 +372,9 @@ def overview_plot(names_block):
             profile_points = vel[-1].vector['x'].x[0].points.vector['y']
             ana_sol = plane_poisseuille(profile_points, visc, p_grad, last_vel.bounds.size.vector['y'])
 
-            error = (avg_profile - ana_sol).numpy()
+            # error = ((avg_profile - ana_sol)/ana_sol).numpy()
+            error = ((avg_profile - ana_sol)).numpy()
+
             x_vals = profile_points.numpy()
 
             lines.append([x_vals, error])
@@ -380,16 +382,25 @@ def overview_plot(names_block):
         lines_block.append(lines)
 
     import matplotlib.pyplot as plt
-    linestyles = ['-', ':', '--', '-.']
+    linestyles = ['-', '--', ':', '-.']
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+
+    fig = plt.figure(figsize=(9, 6))
+    ax = plt.subplot(title=title)
+
     for block_nr, lines in enumerate(lines_block):
-        for line in lines:
-            plt.plot(line[0], line[1], label=f"xynum: {line[0].size}", linestyle=linestyles[block_nr])
+        for line_nr, line in enumerate(lines):
+            ax.plot(line[0], line[1], label=f"ord: {block_names[block_nr] if block_names is not None else '/'} - res: {line[0].size}",
+                    color=colors[line_nr], linestyle=linestyles[block_nr])
 
-    plt.yscale('log')
-    plt.legend()
-    plt.show()
-
-    print('done')
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
+    ax.set_xlabel('y axis position')
+    ax.set_ylabel('error')
+    ax.set_yscale('log')
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
+          ncol=1, fancybox=True, shadow=True)
+    fig.savefig(f"plots/{title}.jpg")
 
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
@@ -617,4 +628,22 @@ def overview_plot(names_block):
 # # test.more_plots()
 #
 
-overview_plot([['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015']])
+overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015'],
+               ['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015']],
+              block_names=['high 4/6',
+                           'low   2   '],
+              title='poiseulle error comparison - vis=0.01 - press_grad=0.01 relative')
+
+overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005'],
+               ['lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005']],
+              block_names=['high 4/6',
+                           'low   2   '],
+              title='poiseulle error comparison - vis=0.003 - press_grad=0.01 relative')
+
+overview_plot([['Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003'],
+               ['lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003']],
+              block_names=['high 4/6',
+                           'low   2   '],
+              title='poiseulle error comparison - vis=0.01 - press_grad=0.05 relative')
+
+print('done')
