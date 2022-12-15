@@ -359,10 +359,15 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
     except FileExistsError:
         pass
 
-    lines_block = []
+    comparison_lines_block = []
+    steadiness_lines_block = []
+    convergence_lines = []
     for names in names_block:
 
-        lines = []
+        comparison_lines = []
+        steadiness_lines = []
+        convergence_line = []
+        convergence_res = []
         for name in names:
             vel_data = field.read(f"data/{name}/vel.npz")
             data = np.load(f"data/{name}/data.npz")
@@ -371,31 +376,53 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
             visc = data['visc'].item()
             freq = data['freq'].item()
             p_grad = data['p_grad'].item()
+            t_num = data['t_num'].item()
+            dt = data['dt'].item()
 
             last_vel = vel[-1].vector['x']
             avg_profile = math.sum(last_vel.values, 'x') / last_vel.values.shape.only('y').size
             profile_points = vel[-1].vector['x'].x[0].points.vector['y']
             ana_sol = plane_poisseuille(profile_points, visc, p_grad, last_vel.bounds.size.vector['y'])
 
-            error_curves = (((avg_profile - ana_sol)).numpy(), ((avg_profile - ana_sol)/ana_sol).numpy())
-
+            comparison_error_curves = (((avg_profile - ana_sol)).numpy(), ((avg_profile - ana_sol)/ana_sol).numpy())
             x_vals = profile_points.numpy()
+            comparison_lines.append([x_vals, comparison_error_curves])
 
-            lines.append([x_vals, error_curves])
+            convergence_line.append((avg_profile - ana_sol).y[int(avg_profile.y.size/2)])
+            convergence_res.append(avg_profile.y.size)
 
-        lines_block.append(lines)
+            middle_cell_time_dev = vel_data.vector['x'].values
+
+            rate_of_change_avg = []
+            rate_of_change_mid_point = []
+            for i in range(1, middle_cell_time_dev.time.size):
+                diff = (middle_cell_time_dev.time[i-1] - middle_cell_time_dev.time[i])/freq
+                rate_of_change_avg.append(math.mean(diff**2)/math.mean(abs(middle_cell_time_dev.time[i])))
+                rate_of_change_mid_point.append(diff.vector['x'].x[int(vel_data.x.size/2)].y[int(vel_data.y.size/2)])
+
+            time_scaling = np.linspace(0, dt*t_num, len(rate_of_change_avg))
+            steadiness_lines.append([time_scaling, (np.array(rate_of_change_mid_point), np.array(rate_of_change_avg))])
+
+        convergence_lines.append([convergence_res, convergence_line])
+        comparison_lines_block.append(comparison_lines)
+        steadiness_lines_block.append(steadiness_lines)
+
 
     import matplotlib.pyplot as plt
     linestyles = ['-', '--', ':', '-.']
     colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 
-    def plt_comparison(title, error_curve):
+    def plt_line_block(data_block, title, extra_param=None):
         fig = plt.figure(figsize=(9, 6))
         ax = plt.subplot(title=title)
 
-        for block_nr, lines in enumerate(lines_block):
+        for block_nr, lines in enumerate(data_block):
             for line_nr, line in enumerate(lines):
-                ax.plot(line[0], line[1][error_curve], label=f"ord: {block_names[block_nr] if block_names is not None else '/'} - res: {line[0].size}",
+                if extra_param is not None:
+                    error_line = line[1][extra_param]
+                else:
+                    error_line = line[1]
+                ax.plot(line[0], error_line, label=f"ord: {block_names[block_nr] if block_names is not None else '/'} - res: {line[0].size}",
                         color=colors[line_nr], linestyle=linestyles[block_nr])
 
         box = ax.get_position()
@@ -405,11 +432,40 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
         ax.set_yscale('log')
         ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
               ncol=1, fancybox=True, shadow=True)
-        fig.savefig(f"plots/{title}.jpg")
+        fig.savefig(f"plots/{folder_name}/{title}.jpg")
         plt.close(fig)
 
-    plt_comparison(title, 0)
-    plt_comparison(title, 1)
+    plt_line_block(comparison_lines_block, title + " error comparison", 0)
+    plt_line_block(comparison_lines_block, title + " error comparison relative", 1)
+    plt_line_block(steadiness_lines_block, title + " steadiness mid point", 0)
+    plt_line_block(steadiness_lines_block, title + " steadiness avg", 1)
+
+    def plt_lines(data_block, title, extra_param=None):
+        fig = plt.figure(figsize=(9, 6))
+        ax = plt.subplot(title=title)
+
+        for line_nr, line in enumerate(data_block):
+            if extra_param is not None:
+                error_line = line[1][extra_param]
+            else:
+                error_line = line[1]
+            ax.plot(line[0], error_line, label=f"ord: {block_names[line_nr] if block_names is not None else '/'}",
+                    color=colors[line_nr])
+
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
+        ax.set_xlabel('y axis position')
+        ax.set_ylabel('error')
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
+              ncol=1, fancybox=True, shadow=True)
+        fig.savefig(f"plots/{folder_name}/{title}.jpg")
+        plt.close(fig)
+
+    plt_lines(convergence_lines, title + " convergence course")
+
+
 
 
 # test = TestRun(0, StaggeredGrid, "high_order", name="real_symmetric")
@@ -641,18 +697,18 @@ overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flo
                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015']],
               block_names=['high 4/6',
                            'low   2   '],
-              title='poiseulle error comparison - vis=0.01 - press_grad=0.01', folder_name="Poisseuille_flow_6")
+              title='poiseulle - vis=0.01 - press_grad=0.01', folder_name="Poisseuille_flow_6")
 
 overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005'],
                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005']],
               block_names=['high 4/6',
                            'low   2   '],
-              title='poiseulle error comparison - vis=0.003 - press_grad=0.01', folder_name="Poisseuille_flow_6")
+              title='poiseulle - vis=0.003 - press_grad=0.01', folder_name="Poisseuille_flow_6")
 
 overview_plot([['Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003'],
                ['lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003']],
               block_names=['high 4/6',
                            'low   2   '],
-              title='poiseulle error comparison - vis=0.01 - press_grad=0.05', folder_name="Poisseuille_flow_6")
+              title='poiseulle - vis=0.01 - press_grad=0.05', folder_name="Poisseuille_flow_6")
 
 print('done')
