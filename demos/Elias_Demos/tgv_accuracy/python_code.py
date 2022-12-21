@@ -1,5 +1,5 @@
 # from phi.flow import *
-from phi.jax.flow import *
+from phi.flow import *
 from functools import partial
 import os
 
@@ -228,9 +228,9 @@ xy_nums2_ = [3, 5, 7, 10, 12, 15, 17, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65]
 small_test = [5]
 
 
-# test = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
-# test.run(jit_compile=False)
-# test.calc_errors(relative_error=True)
+test = TestRun(small_test, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "test")
+test.run(jit_compile=True)
+test.calc_errors(relative_error=True)
 
 
 #
@@ -239,11 +239,6 @@ small_test = [5]
 # pt_phi_flow.calc_errors(relative_error=True)
 
 
-pt_phi_flow = TestRun(small_test, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
-pt_phi_flow.run(jit_compile=True)
-pt_phi_flow.calc_errors(relative_error=True)
-#
-#
 # pt_phi_flow_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "phi_flow_stagg")
 # pt_phi_flow_stagg.run(jit_compile=True)
 # pt_phi_flow_stagg.calc_errors(relative_error=True)
