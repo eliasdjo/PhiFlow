@@ -123,7 +123,7 @@ class TestRun:
         return v, p
 
 
-    def run(self, jit_compile=True, t_num=0, freq=100):
+    def run(self, jit_compile=True, t_num=0, freq=1):
         print(f"run {self.name}:")
 
         os.mkdir(f"data/{self.name}")
@@ -218,6 +218,7 @@ class TestRun:
 
 
 tges = 5
+tges = 0.5
 
 xy_nums = [5, 15, 45, 95, 155, 255]
 xy_nums2 = [5, 15, 25, 35, 45, 55, 65]
@@ -225,7 +226,7 @@ xy_nums2 = [5, 15, 25, 35, 45, 55, 65]
 xy_nums_ = [5, 15, 25, 35, 45, 55, 65, 85, 105, 125, 155, 185, 215, 255]
 xy_nums2_ = [3, 5, 7, 10, 12, 15, 17, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65]
 
-small_test = [5]
+small_test = [5, 10]
 
 
 # test = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
@@ -239,41 +240,41 @@ small_test = [5]
 # pt_phi_flow.calc_errors(relative_error=True)
 
 
-pt_phi_flow = TestRun(small_test, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
-pt_phi_flow.run(jit_compile=True)
-pt_phi_flow.calc_errors(relative_error=True)
+# pt_phi_flow = TestRun(small_test, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "test")
+# pt_phi_flow.run(jit_compile=True)
+# pt_phi_flow.calc_errors(relative_error=True)
 #
 #
-# pt_phi_flow_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "phi_flow_stagg")
-# pt_phi_flow_stagg.run(jit_compile=True)
-# pt_phi_flow_stagg.calc_errors(relative_error=True)
+pt_phi_flow_stagg = TestRun(small_test, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_phi_flow", "pt_phi_flow", "phi_flow_stagg")
+pt_phi_flow_stagg.run(jit_compile=True)
+pt_phi_flow_stagg.calc_errors(relative_error=True)
 #
 #
 # low_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order")
 # low_order.run(jit_compile=True)
 # low_order.calc_errors(relative_error=True)
 #
-# low_order_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order_stagg")
-# low_order_stagg.run(jit_compile=True)
-# low_order_stagg.calc_errors(relative_error=True)
+low_order_stagg = TestRun(small_test, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order_stagg")
+low_order_stagg.run(jit_compile=True)
+low_order_stagg.calc_errors(relative_error=True)
 #
 #
 # mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
 # mid_order.run(jit_compile=True)
 # mid_order.calc_errors(relative_error=True)
 #
-# mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
-# mid_order_stagg.run(jit_compile=True)
-# mid_order_stagg.calc_errors(relative_error=True)
+mid_order_stagg = TestRun(small_test, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
+mid_order_stagg.run(jit_compile=True)
+mid_order_stagg.calc_errors(relative_error=True)
 #
 #
 # high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
 # high_order.run(jit_compile=False)
 # high_order.calc_errors(relative_error=True)
 
-# high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
-# high_order_stagg.run(jit_compile=False)
-# high_order_stagg.calc_errors(relative_error=True)
+high_order_stagg = TestRun(small_test, 0.5, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
+high_order_stagg.run(jit_compile=True, freq=1)
+high_order_stagg.calc_errors(relative_error=True)
 
 
 print("done")

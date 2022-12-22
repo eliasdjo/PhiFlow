@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 # ]
 
 #
-prefix = "tgv_accuracy/errors_f/"
-names = [
-    "phi_flow", "phi_flow_stagg",
-    "low_order", "low_order_stagg",
-    "mid_order", "mid_order_stagg",
-    "high_order", "high_order_stagg"
-         ]
+prefix = "tgv_accuracy/errors/"
+# names = [
+#     "phi_flow", "phi_flow_stagg",
+#     "low_order", "low_order_stagg",
+#     "mid_order", "mid_order_stagg",
+#     "high_order", "high_order_stagg"
+#          ]
+
+names = ["high_order_stagg"]
 
 # prefix = "homogenic_isotropic_turbulence/data/"
 # names = ["compare_p_solve_small_and_big_stencil",
