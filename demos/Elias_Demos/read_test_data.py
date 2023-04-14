@@ -2,16 +2,19 @@ import numpy as np
 from phi.flow import *
 import matplotlib.pyplot as plt
 
-prefix = "operation_accuracy/data/"
 names = [
-    "gradient_snd_comp", "gradient_snd_comp",
-    "gradient_fst_comp", "gradient_fst_comp",
-    "laplacian",
-    "laplacian_staggered",
-    "divergence", "divergence_staggered",
-    "diffusion", "diffusion_staggered",
-    "advection", "advection_staggered"
+    # "gradient_fst_comp",
+    "gradient_staggered_fst_comp",
+    # "gradient_snd_comp",
+    # "gradient_staggered_snd_comp",
+    # "laplacian",
+    # "laplacian_staggered",
+    # "divergence", "divergence_staggered",
+    # "diffusion", "diffusion_staggered",
+    # "advection", "advection_staggered",
+    # "gradient_both_comp", "gradient_both_comp_stagg"
 ]
+prefix = "operation_accuracy/data/"
 
 #
 # prefix = "tgv_accuracy/errors_f/"
