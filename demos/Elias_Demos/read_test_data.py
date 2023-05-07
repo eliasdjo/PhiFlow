@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 
 names = [
     # "gradient_fst_comp",
-    "gradient_staggered_fst_comp",
+    # "gradient_staggered_fst_comp",
     # "gradient_snd_comp",
     # "gradient_staggered_snd_comp",
     # "laplacian",
     # "laplacian_staggered",
-    # "divergence", "divergence_staggered",
+    "divergence", "divergence_staggered",
     # "diffusion", "diffusion_staggered",
     # "advection", "advection_staggered",
     # "gradient_both_comp", "gradient_both_comp_stagg"
