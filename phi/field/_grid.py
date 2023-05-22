@@ -237,8 +237,8 @@ class CenteredGrid(Grid, metaclass=deprecated_field_class('CenteredGrid', parent
                     dyadic_interpolated = self._dyadic_interplate(geometry.resolution, geometry.bounds, **kwargs)
                     if dyadic_interpolated is not NotImplemented:
                         return dyadic_interpolated
-                if 'order' in kwargs and kwargs['order'] != 2:
-                    raise NotImplementedError(f"Only 6th-order implicit and 2nd-order resampling supported but got order={kwargs['order']}")
+                # if 'order' in kwargs and kwargs['order'] != 2:
+                #     raise NotImplementedError(f"Only 6th-order implicit and 2nd-order resampling supported but got order={kwargs['order']}")
                 fast_resampled = self._shift_resample(geometry.resolution, geometry.bounds)
                 if fast_resampled is not NotImplemented:
                     return fast_resampled
@@ -587,29 +587,116 @@ def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapo
     Returns:
       Sub-grid as `Tensor`
     """
-    if implicit:
-        if order == 6:
+    from demos.Elias_Demos.fd_coefficient_calc3 import get_coefficients
+    if not implicit:
+        if order == 2:
+            values, needed_shifts = get_coefficients([-0.5, 0.5], 0)[0], (0, 1)
+        elif order == 20:
+            values, needed_shifts = get_coefficients([-0.5, 0.5], 0)[0], (0, 1)
+            v_ns_b0 = [(get_coefficients([0.5, 1.5], 0)[0], (1, 2))]
+        elif order == 1:
+            values, needed_shifts = get_coefficients([0.5, 1.5, 2.5, 3.5], 0)[0], (1, 2, 3, 4)
+        elif order == 4:
+            values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 0)[0], (-1, 0, 1, 2)
+        elif order == 40:
+            values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 0)[0], (-1, 0, 1, 2)
+            v_ns_b0 = [(get_coefficients([0.5, 1.5, 2.5, 3.5], 0)[0], (1, 2, 3, 4)),
+                       (get_coefficients([-0.5, 0.5, 1.5, 2.5], 0)[0], (0, 1, 2, 3))]
+    else:
+        v_ns_b0_rhs = []
+        if order == 1:
+            vs_ns_b0_list = [get_coefficients([0.5, 1.5, 2.5, 3.5], 0, [1]),
+                             get_coefficients([-0.5, 0.5, 1.5, 2.5], 0, [-1, 1])]
+            values, needed_shifts = vs_ns_b0_list[0][0], (1, 2, 3, 4)
+            values_rhs, needed_shifts_rhs = vs_ns_b0_list[0][1] + [1], (1, 0)
+
+            # values, needed_shifts = [1 / 20, 3 / 4, 3 / 4, 1 / 20], (-1, 0, 1, 2)
+            # values_rhs, needed_shifts_rhs = [3 / 10, 1, 3 / 10], (-1, 0, 1)
+        elif order == 6:
             values, needed_shifts = [1 / 20, 3 / 4, 3 / 4, 1 / 20], (-1, 0, 1, 2)
             values_rhs, needed_shifts_rhs = [3 / 10, 1, 3 / 10], (-1, 0, 1)
+        elif order == 60:
+            needed_shifts, needed_shifts_rhs = (-1, 0, 1, 2), (-1, 1, 0)
+            values, values_rhs = get_coefficients([-1.5, -0.5, 0.5, 1.5], 0, [-1, 1])
+            values_rhs = values_rhs + [1]
+
+            vs_ns_b0_list = [get_coefficients([0.5, 1.5, 2.5, 3.5], 0, [1]),
+                             get_coefficients([-0.5, 0.5, 1.5, 2.5], 0, [-1, 1])]
+
+            v_ns_b0 = [(vs_ns_b0_list[0][0], (1, 2, 3, 4)),
+                       (vs_ns_b0_list[1][0], (0, 1, 2, 3))]
+            v_ns_b0_rhs = [(vs_ns_b0_list[0][1] + [1], (1, 0)),
+                           (vs_ns_b0_list[1][1] + [1], (-1, 1, 0))]
         else:
             return NotImplemented
-    else:
-        return NotImplemented
-    result = grid
+
+
     for dim, dir in zip(grid.shape.spatial.names, interpolation_dirs):
-        if dir == 0: continue
+        if dir == 0:
+            continue
         is_neg_dir = dir == -1
-        current_widths = [abs(min(needed_shifts)) + is_neg_dir, max(needed_shifts) - is_neg_dir]
-        padded = math.pad(result, {dim: tuple(current_widths)}, padding)
-        shifted = math.shift(padded, needed_shifts, [dim], padding=None, stack_dim=None)
-        result = sum([value * shift_ for value, shift_ in zip(values, shifted)])
+
+        def apply_stencil(result_, values_, needed_shifts_):
+            current_widths = [max(-min(needed_shifts_), 0) + is_neg_dir, max(max(needed_shifts_), 0) - is_neg_dir]
+            padded = math.pad(result_, {dim: tuple(current_widths)}, padding)
+            shifted = math.shift(padded, needed_shifts_, [dim], padding=None, stack_dim=None)
+            result = sum([value * shift_ for value, shift_ in zip(values_, shifted)])
+            return result
+
+        result = apply_stencil(grid, values, needed_shifts)
+
+        if order >= 10:
+            for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
+
+                one_sided_components = apply_stencil(grid, values_b0, needed_shifts_b0)
+                values_b0_top, needed_shifts_b0_top = [val for val in reversed(values_b0)], \
+                                                      [-shift+1 for shift in reversed(needed_shifts_b0)]
+                one_sided_components_top = apply_stencil(grid, values_b0_top, needed_shifts_b0_top)
+
+                from phi.math import tensor, instance
+                shape = result.shape
+                mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
+                                                               tensor([i], instance('points')),
+                                                               tensor([1], instance('points')))
+
+                rc_tensor = math.where(mask_tensor, one_sided_components, result)
+                rc_tensor = math.where(mask_tensor.flip(dim), one_sided_components_top, rc_tensor)
+                result = rc_tensor
+
         if implicit:
             implicit.x0 = result
-            result = math.solve_linear(dyadic_interpolate_lhs, result, implicit, values_rhs=values_rhs, needed_shifts_rhs=needed_shifts_rhs, dim=dim, padding=padding)
+            result = math.solve_linear(dyadic_interpolate_lhs, result, implicit, values_rhs=values_rhs, needed_shifts_rhs=needed_shifts_rhs,
+                                       dim=dim, padding=padding, v_ns_b0_rhs=v_ns_b0_rhs)
+
+        grid = result
+
     return result
 
 
-@math.jit_compile_linear(auxiliary_args="values_rhs, needed_shifts_rhs")
-def dyadic_interpolate_lhs(x, values_rhs, needed_shifts_rhs, dim, padding):
-    shifted = math.shift(x, needed_shifts_rhs, stack_dim=None, dims=[dim], padding=padding)
-    return sum([value * shift_ for value, shift_ in zip(values_rhs, shifted)])
+# @math.jit_compile_linear(auxiliary_args="values_rhs, needed_shifts_rhs")
+def dyadic_interpolate_lhs(x, values_rhs, needed_shifts_rhs, dim, padding, v_ns_b0_rhs):
+    def apply_stencil(values_rhs_, needed_shifts_rhs_):
+        shifted = math.shift(x, needed_shifts_rhs_, stack_dim=None, dims=[dim], padding=padding)
+        result_ = sum([value * shift_ for value, shift_ in zip(values_rhs_, shifted)])
+        return result_
+
+    result = apply_stencil(values_rhs, needed_shifts_rhs)
+
+    for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0_rhs):
+
+        one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+        one_sided_components_top = apply_stencil([val for val in reversed(values_b0)],
+                                                 [-shift for shift in reversed(needed_shifts_b0)])
+
+        from phi.math import tensor, instance
+        shape = result.shape
+        mask_tensor = math.zeros(shape) + math.concat([math.zeros(spatial(**{dim: i})), math.ones(spatial(**{dim: 1})), math.zeros(spatial(**{dim: shape.only(dim).size - (i+1)}))], dim)
+
+        rc_tensor = math.where(mask_tensor, one_sided_components, result)
+        rc_tensor = math.where(mask_tensor.flip(dim), one_sided_components_top, rc_tensor)
+        result = rc_tensor
+
+    return result
+# def dyadic_interpolate_lhs(x, values_rhs, needed_shifts_rhs, dim, padding):
+#     shifted = math.shift(x, needed_shifts_rhs, stack_dim=None, dims=[dim], padding=padding)
+#     return sum([value * shift_ for value, shift_ in zip(values_rhs, shifted)])
