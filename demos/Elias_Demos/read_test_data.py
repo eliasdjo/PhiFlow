@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 names = [
     # "test_impl_os",
-    "gradient_fst_comp",
-    "gradient_staggered_fst_comp",
+    # "gradient_fst_comp",
+    # "gradient_staggered_fst_comp",
     # "gradient_snd_comp",
     # "gradient_staggered_snd_comp",
     # "laplacian",
@@ -14,7 +14,8 @@ names = [
     # "divergence", "divergence_staggered",
     # "diffusion", "diffusion_staggered",
     # "advection", "advection_staggered",
-    # "gradient_both_comp", "gradient_both_comp_stagg"
+    "gradient_both_comp",
+    # "gradient_both_comp_stagg"
 ]
 prefix = "operation_accuracy/data/"
 

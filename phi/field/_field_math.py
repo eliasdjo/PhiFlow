@@ -180,41 +180,80 @@ def spatial_gradient(field: CenteredGrid,
     Returns:
         spatial_gradient field of type `type`.
     """
+
+    if field.vector.exists:
+        assert stack_dim.name != 'vector', "`stack_dim=vector` is inadmissible if the input is a vector grid"
+        if field == StaggeredGrid:
+            assert type == StaggeredGrid, "for a `StaggeredGrid` input only `type == StaggeredGrid` is possible"
+            type = CenteredGrid
+
     if gradient_extrapolation is None:
         gradient_extrapolation = field.extrapolation.spatial_gradient()
 
-    def get_stencils(order, implicit_order=0, one_sided=False, staggered=False):
+
+    def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False, output_boundary_valid=False, input_boundary_valid=False):
         extend = int(math.ceil((order - implicit_order) / 2))
-        shifts = [*range(-extend, extend+1)]
-
         rhs_extend = int(math.ceil(implicit_order / 2))
-        rhs_shifts = [*range(-rhs_extend, rhs_extend+1)] if implicit_order else []
 
-        if staggered:
-            del shifts[0]
-            values, rhs_values = get_coefficients([s-0.5 for s in shifts], 1, rhs_shifts)
-        else:
-            values, rhs_values = get_coefficients(shifts, 1, rhs_shifts)
+        shifts = [*range(-extend, extend+1)]
+        rhs_shifts = [*range(-rhs_extend, rhs_extend+1)] if implicit_order else []
 
         v_ns_b0, rhs_v_ns_b0 = [], []
         max_extend = max(extend, rhs_extend)
         if one_sided:
             for i in range(1, max_extend+1):
-                off = max(0, extend - max_extend + i)
+                off = max(0, extend - max_extend + i) # non defining boundary
                 off_rhs = max(0, rhs_extend - max_extend + i)
                 n_shifts = [*range(-extend+off, extend+1+off+off_rhs)]
                 rhs_n_shifts = [*range(-rhs_extend+off_rhs, rhs_extend+1)] if implicit_order else []
+
                 if staggered:
                     n_shifts = [n+1 for n in n_shifts]
-                    n_values, n_values_rhs = get_coefficients([n-0.5 for n in n_shifts], 1, rhs_n_shifts)
+                    coefficient_shifts = [n-0.5 for n in n_shifts]
+                    if input_boundary_valid:
+                        del coefficient_shifts[-1]
+                        coefficient_shifts.insert(0, 0)
+                        del n_shifts[-1]
+                        n_shifts.insert(0, -1)
+                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
                 else:
-                    n_values, n_values_rhs = get_coefficients(n_shifts, 1, rhs_n_shifts)
+                    coefficient_shifts = n_shifts.copy()
+                    if input_boundary_valid:
+                        del coefficient_shifts[-1]
+                        coefficient_shifts.insert(0, -0.5)
+                        del n_shifts[-1]
+                        n_shifts.insert(0, -1)
+                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
+
+                if left_border_one_sided:
+                    n_values = [-v for v in reversed(n_values)]
+                    n_shifts = [-s for s in reversed(n_shifts)]
+                    n_values_rhs = [v for v in reversed(n_values)]
+                    rhs_n_shifts = [-s for s in reversed(n_shifts)]
+
                 v_ns_b0.insert(0, (n_values, n_shifts))
                 rhs_v_ns_b0.insert(0, (n_values_rhs, rhs_n_shifts))
 
-        return values, shifts, rhs_values, rhs_shifts, v_ns_b0, rhs_v_ns_b0
+            if staggered and not output_boundary_valid:
+                del v_ns_b0[0]
+                del rhs_v_ns_b0[0]
 
-    v_ns_b0_rhs = []
+        else:
+                if staggered:
+                    del shifts[0]
+                    values, rhs_values = get_coefficients([s - 0.5 for s in shifts], 1, rhs_shifts)
+                else:
+                    values, rhs_values = get_coefficients(shifts, 1, rhs_shifts)
+
+                v_ns_b0.insert(0, (values, shifts))
+                rhs_v_ns_b0.insert(0, (rhs_values, rhs_shifts))
+
+        return v_ns_b0, rhs_v_ns_b0
+
+
+    v_ns_b0, v_ns_b0_rhs = get_stencils(order, implicitness if implicit else 0, staggered=type==StaggeredGrid)
+
+
     # if order == -1:
     #     values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 1, [-1, 0, 1])
     #     needed_shifts, needed_shifts_rhs = [-2, -1, 0, 1, 2], [-1, 0, 1]
@@ -236,12 +275,19 @@ def spatial_gradient(field: CenteredGrid,
     # elif order == -7:
     #     values, values_rhs = get_coefficients([0, 1, 2, 3, 4], 1, [0, 1, 2])
     #     needed_shifts, needed_shifts_rhs = [0, 1, 2, 3, 4], [0, 1, 2]
+    # elif order == -8:
+    #     values, values_rhs = get_coefficients([-1, 0, 1, 2, 3], 1, [-1, 0, 1])
+    #     needed_shifts, needed_shifts_rhs = [-1, 0, 1, 2, 3], [-1, 0, 1]
+    # elif order == 120:
+    #     values, needed_shifts, values_rhs, \
+    #     needed_shifts_rhs, v_ns_b0, v_ns_b0_rhs = get_stencils(10,
+    #                                                        4,
+    #                                                        one_sided=order >= 10, staggered=type == StaggeredGrid)
     # else:
-    values, needed_shifts, values_rhs, \
-    needed_shifts_rhs, v_ns_b0, v_ns_b0_rhs = get_stencils(int(order/10) if order >= 10 else order, 2 if implicit else 0,
-                                                           one_sided=order>=10, staggered=type==StaggeredGrid)
+    # values, needed_shifts, values_rhs, \
+    # needed_shifts_rhs, v_ns_b0, v_ns_b0_rhs = get_stencils(int(order/10) if order >= 10 else order, 2 if implicit else 0,
+    #                                                    one_sided=order>=10, staggered=type==StaggeredGrid)
 
-    extrap_map = {}
     # v_ns_b0 = []
     # if not implicit:
     #     # if order == 1:
@@ -274,7 +320,7 @@ def spatial_gradient(field: CenteredGrid,
     #             values, needed_shifts = get_coefficients([-2, -1, 0, 1, 2], 1)[0], (-2, -1, 0, 1, 2)
     #             # values, needed_shifts = [1/12, -2/3, 2/3, -1/12], (-2, -1, 1, 2)
     #         else:
-    #             values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1)[0], (-1, 0, 0.5, 1, 2)
+    #             values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1)[0], (-1, 0, 1, 2)
     #             # values, needed_shifts = [1/24, -27/24, 27/24, -1/24], (-1, 0, 1, 2)
     #     elif order == 40:
     #         if type == CenteredGrid:
@@ -370,9 +416,6 @@ def spatial_gradient(field: CenteredGrid,
         base_widths = (max(-min(needed_shifts_), 0), max(max(needed_shifts_), 0))
 
         if type == CenteredGrid:
-            # ToDo if extrapolation == math.extrapolation.NONE, extend size by 1
-            # pad = 1 if extrapolation == math.extrapolation.NONE else 0
-            # bounds = Box(field.bounds.lower - field.dx, field.bounds.upper + field.dx) if extrapolation == math.extrapolation.NONE else field.bounds
             std_widths = (0, 0)
             if gradient_extrapolation == math.extrapolation.NONE:
                 base_widths = (-min(needed_shifts_) + 1, max(needed_shifts_) + 1)
@@ -394,10 +437,20 @@ def spatial_gradient(field: CenteredGrid,
 
         return result_components
 
+    result_components = apply_stencil(*v_ns_b0[0])
 
-    result_components = apply_stencil(values, needed_shifts)
 
-    if order >= 10:
+    # boundary masks
+    input_valid_mask = extrapolation.combine_sides(**{dim: tuple(extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in field.extrapolation.valid_outer_faces(dim)) for dim in spatial_dims})
+    output_valid_mask = extrapolation.combine_sides(**{dim: tuple(extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in gradient_extrapolation.valid_outer_faces(dim)) for dim in spatial_dims})
+
+    def ext_to_mask_func(ext: Extrapolation):
+        one_sided_extrapolations = [extrapolation.ZERO, extrapolation.ONE]
+        return extrapolation.ONE if ext in one_sided_extrapolations else extrapolation.ZERO
+    one_sided_mask = extrapolation.map(ext_to_mask_func, field.extrapolation)
+
+    import itertools
+    for input_valid, output_valid, one_sided in itertools.product([False, True], 3):
         for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
 
             one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
@@ -432,10 +485,7 @@ def spatial_gradient(field: CenteredGrid,
     return result
 
 
-def _ex_map_f(ext_dict: dict):
-    def f(ext: Extrapolation):
-        return ext_dict[ext.__repr__()] if ext.__repr__() in ext_dict else ext
-    return f
+
 
 
 # @jit_compile_linear(auxiliary_args="values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output")
@@ -466,8 +516,6 @@ def _rhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stac
             #                                                tensor([i], instance('points')),
             #                                                tensor([1], instance('points')))
             mask_tensor = math.zeros(shape) + math.concat([math.zeros(spatial(**{dim: i})), math.ones(spatial(**{dim: 1})), math.zeros(spatial(**{dim: shape.only(dim).size - (i+1)}))], dim)
-
-            mask_tensor_ = math.where(mask_tensor, 0, 1)
 
             # rc = rc * rc.with_values(mask_tensor_) * rc.with_values(mask_tensor_.flip(dim))
             # rc = rc + one_sided_components[dim_i] * rc.with_values(mask_tensor) + one_sided_components_top[
