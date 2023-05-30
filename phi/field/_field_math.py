@@ -228,11 +228,15 @@ def spatial_gradient(field: CenteredGrid,
                 if left_border_one_sided:
                     n_values = [-v for v in reversed(n_values)]
                     n_shifts = [-s for s in reversed(n_shifts)]
-                    n_values_rhs = [v for v in reversed(n_values)]
-                    rhs_n_shifts = [-s for s in reversed(n_shifts)]
+                    # n_values_rhs = [v for v in reversed(n_values)]
+                    # rhs_n_shifts = [-s for s in reversed(n_shifts)]
+                    n_values_rhs = [v for v in reversed(n_values_rhs)]
+                    rhs_n_shifts = [-s for s in reversed(rhs_n_shifts)]
 
-                v_ns_b0.insert(0, (n_values, n_shifts))
-                rhs_v_ns_b0.insert(0, (n_values_rhs, rhs_n_shifts))
+                # v_ns_b0.insert(0, [n_values, n_shifts])
+                # rhs_v_ns_b0.insert(0, [n_values_rhs, rhs_n_shifts])
+                v_ns_b0.insert(0, n_values)
+                rhs_v_ns_b0.insert(0, n_values_rhs)
 
             if staggered and not output_boundary_valid:
                 del v_ns_b0[0]
@@ -248,8 +252,22 @@ def spatial_gradient(field: CenteredGrid,
                 v_ns_b0.insert(0, (values, shifts))
                 rhs_v_ns_b0.insert(0, (rhs_values, rhs_shifts))
 
-        return v_ns_b0, rhs_v_ns_b0
+        return [v_ns_b0, rhs_v_ns_b0]
 
+    from itertools import product
+    stencils = [get_stencils(order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
+                             staggered=type==StaggeredGrid, output_boundary_valid=out_valid, input_boundary_valid=in_valid)
+                for left_side, out_valid, in_valid in product([False, True], repeat=3)]
+
+    problems = [stencils[i] for i in [1, 4, 6]]
+
+    # stencil_tensors = [tensor(stencil, batch('left_right', 'position', 'koeff_shifts', 'values')) for stencil in stencils]
+    stencil_tensors = [tensor(stencil, batch('left_right', 'position', 'values')) for stencil in stencils]
+    test = [[[[0] * 6, [0] * 5], [[0] * 2, [0] * 3]]] + [[[[0] * 6, [0] * 5], [[0] * 5, [0] * 6]]] * 2
+    test_tensors = [tensor(t, batch('left_right', 'position', 'values')) for t in test]
+    test_tensor = tensor(test_tensors, batch('temp'))
+    # stencil_tensor = tensor(stencil_tensors, batch('temp'))
+    stencil_tensor = tensor([stencil_tensors[i] for i in [1, 4, 6]], batch('temp'))
 
     v_ns_b0, v_ns_b0_rhs = get_stencils(order, implicitness if implicit else 0, staggered=type==StaggeredGrid)
 
