@@ -236,7 +236,7 @@ print('test done')
 
 TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
         [
-            # partial(field.spatial_gradient, order=2),
+            partial(field.spatial_gradient, order=2),
             partial(field.spatial_gradient, order=4),
             partial(field.spatial_gradient, order=6),
             # partial(field.spatial_gradient, order=40),
@@ -309,7 +309,7 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
 #             "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
 #             "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
 #             ],
-#         scalar_input=0, input_gridtype=CenteredGrid)
+#         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
 #
 # TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
 #         [
