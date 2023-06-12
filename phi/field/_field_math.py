@@ -203,7 +203,8 @@ def spatial_gradient(field: CenteredGrid,
         assert stack_dim.name == 'vector', f"spatial_gradient with type=StaggeredGrid requires stack_dim.name == 'vector' but got '{stack_dim.name}'"
 
     if gradient_extrapolation is None:
-        gradient_extrapolation = field.extrapolation.spatial_gradient()
+        # gradient_extrapolation = field.extrapolation.spatial_gradient()
+        gradient_extrapolation = field.extrapolation
 
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
@@ -450,11 +451,18 @@ def spatial_gradient(field: CenteredGrid,
                                 batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts',
                                       'values'))
 
+    grad_dims = field.shape.only(dims).names
+
+    # #empty_base_mask
+    # base_res = field.resolution
+
     # boundary masks
     output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
         extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in
         gradient_extrapolation.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
-    output_valid_mask = field.with_values(0).with_extrapolation(output_valid_ext)
+    # output_valid_mask = field.with_values(0).with_extrapolation(output_valid_ext)
+    standard_mask = type(tensor([0, 0], channel(vector=grad_dims)), bounds=field.bounds, resolution=field.resolution)
+    output_valid_mask = standard_mask.with_extrapolation(output_valid_ext)
 
     def ext_list_to_map_func(target_extrapolations):
         def f(ext: Extrapolation):
@@ -466,16 +474,15 @@ def spatial_gradient(field: CenteredGrid,
     #                                     field.extrapolation)
     input_valid_ext = extrapolation.map(ext_list_to_map_func([]),
                                         field.extrapolation)
-    input_valid_mask = field.with_values(0).with_extrapolation(input_valid_ext)
+    # input_valid_mask = field.with_values(0).with_extrapolation(input_valid_ext)
+    input_valid_mask = standard_mask.with_extrapolation(input_valid_ext)
     one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.PERIODIC]), field.extrapolation)
-    one_sided_mask = field.with_values(0).with_extrapolation(one_sided_ext)
+    # one_sided_mask = field.with_values(0).with_extrapolation(one_sided_ext)
+    one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
 
-    grad_dims = field.shape.only(dims).names
     result_components = [apply_stencils(field, gradient_extrapolation, base_values, base_shifts, type, dim,
                                            stencil_tensors=one_sided_stencil_tensor.left_right[0],
-                                           masks=(output_valid_mask, input_valid_mask, one_sided_mask)) for dim in grad_dims]
-
-    result_components = [field.with_extrapolation(gradient_extrapolation).with_values(rc) for rc in result_components]
+                                           masks=(ovm, ivm, osm)) for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask.vector, input_valid_mask.vector, one_sided_mask.vector)]
 
     # for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
     #
@@ -497,7 +504,7 @@ def spatial_gradient(field: CenteredGrid,
     stack_dim = stack_dim._with_item_names((grad_dims,))
 
     if type == CenteredGrid:
-        result = stack(result_components, stack_dim)
+        result = field.with_values(math.stack(result_components, stack_dim))
     else:
         result = StaggeredGrid(
             math.stack([component.values for component in result_components], channel(vector=grad_dims)),
@@ -516,32 +523,34 @@ def spatial_gradient(field: CenteredGrid,
 
     return result
 
-# @jit_compile_linear(auxiliary_args="gradient_extrapolation, base_koeff, base_shifts, type, dim, masks, stencil_tensors")
+@jit_compile_linear(auxiliary_args="gradient_extrapolation, base_koeff, base_shifts, type, dim, masks, stencil_tensors")
 def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None):
     from itertools import product
     spatial_dims = field.shape.spatial.names
 
     def apply_stencil(values_, needed_shifts_):
-        if len(values_) == 0 and len(needed_shifts_) == 0:
-            return 0
         needed_shifts_ = [int(i) for i in needed_shifts_]
         base_widths = (max(-min(needed_shifts_), 0), max(max(needed_shifts_), 0))
 
+        std_widths = (0, 0)
         if type == CenteredGrid:
-            std_widths = (0, 0)
             if gradient_extrapolation == math.extrapolation.NONE:
-                base_widths = (-min(needed_shifts_) + 1, max(needed_shifts_) + 1)
+                base_widths = (base_widths[0] + 1, base_widths[1] + 1)
                 std_widths = (1, 1)
-            padded_component = pad(field, {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims})
         elif type == StaggeredGrid:
             assert spatial_dims == field.shape.spatial.names, f"spatial_gradient with type=StaggeredGrid requires dims=spatial, i.e. dims='{','.join(field.shape.spatial.names)}'"
             base_widths = (base_widths[0], base_widths[1] - 1)
-            padded_component = pad_for_staggered_output(field, gradient_extrapolation, (dim,), base_widths)[0]
+            border_valid = gradient_extrapolation.valid_outer_faces(dim)
+            base_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
         else:
             raise ValueError(type)
 
-        shifted_component = shift(padded_component, tuple(needed_shifts_), stack_dim=None, pad=False, dims=dim)
-        result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field.dx.vector[dim]).with_bounds(field.bounds)
+        padded_component = math.pad(field.values,
+                                    {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims},
+                                    field.extrapolation)
+
+        shifted_component = math.shift(padded_component, tuple(needed_shifts_), stack_dim=None, padding=None, dims=dim)
+        result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field.dx.vector[dim])
 
         return result_component
 
@@ -554,19 +563,18 @@ def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type,
             input_valid_mask_ = input_valid_mask if in_valid else one_mask - input_valid_mask
             output_valid_mask_ = output_valid_mask if out_valid else one_mask - output_valid_mask
             mask = input_valid_mask_ * output_valid_mask_ * one_sided_mask
-            # print()
             isolation_mask = 0          # for obstacles we will have to tinker around here
             for i, stencils_i in enumerate(stencils.position):
                 values_b0, needed_shifts_b0 = stencils_i.koeff_shifts
-                one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+                if len(values_b0) != 0 and len(values_b0) != 0:
+                    one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
 
-                mask_ = shift(mask, ((i+1) if left_side else -(i+1),), dims=dim, stack_dim=None)[0] - isolation_mask
-                isolation_mask = isolation_mask + mask_
-                rc = result_component * (1 - mask_) + one_sided_components * mask_
-                result_component = rc
+                    mask_ = shift(mask, ((i+1) if left_side else -(i+1),), dims=dim, stack_dim=None)[0].values - isolation_mask
+                    isolation_mask = isolation_mask + mask_
+                    rc = result_component * (1 - mask_) + one_sided_components * mask_
+                    result_component = rc
 
     return result_component
-    # return result_components[0]
 
 def tond(input):
     return input.values.numpy(input.shape.names)
@@ -625,7 +633,7 @@ def pad_for_staggered_output(field: CenteredGrid, output_extrapolation: Extrapol
     for dim in dims:
         border_valid = output_extrapolation.valid_outer_faces(dim)
         padding_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
-        padded_components.append(pad(field, {dim: padding_widths}))
+        padded_components.append(math.pad(field, {dim: padding_widths}))
 
     return padded_components
 
