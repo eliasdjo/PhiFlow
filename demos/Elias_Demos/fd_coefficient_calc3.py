@@ -38,7 +38,3 @@ def get_coefficients(offsets, derivative, lhs_offsets=[]):
     if handle_zero:
         lhs_values.insert(zero_index, 1)
     return values, lhs_values
-
-# print(get_coefficients([-2, -1, 0, 1, 2], 1, [1, -1]))
-# print(get_coefficients([-2, -1, 0, 1, 2, 3, 4], 2))
-# print(get_coefficients([-0.5, 0.5], 1))
