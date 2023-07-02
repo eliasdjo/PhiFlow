@@ -228,17 +228,17 @@ def spatial_gradient(field: CenteredGrid,
                     coefficient_shifts = [n - 0.5 for n in n_shifts]
                     if input_boundary_valid:
                         del coefficient_shifts[-1]
-                        coefficient_shifts.insert(0, 0)
+                        coefficient_shifts.insert(0, coefficient_shifts[0]-1)
                         del n_shifts[-1]
-                        n_shifts.insert(0, -1)
+                        n_shifts.insert(0, n_shifts[0]-1)
                     n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
                 else:
                     coefficient_shifts = n_shifts.copy()
                     if input_boundary_valid:
                         del coefficient_shifts[-1]
-                        coefficient_shifts.insert(0, -0.5)
+                        coefficient_shifts.insert(0, coefficient_shifts[0]-0.5)
                         del n_shifts[-1]
-                        n_shifts.insert(0, -1)
+                        n_shifts.insert(0, n_shifts[0]-1)
                     n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
 
                 if left_border_one_sided:
