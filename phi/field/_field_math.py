@@ -243,7 +243,10 @@ def spatial_gradient(field: CenteredGrid,
 
                 if left_border_one_sided:
                     n_values = [-v for v in reversed(n_values)]
-                    n_shifts = [-s for s in reversed(n_shifts)]
+                    if staggered:
+                        n_shifts = [-s+1 for s in reversed(n_shifts)]
+                    else:
+                        n_shifts = [-s for s in reversed(n_shifts)]
                     n_values_rhs = [v for v in reversed(n_values_rhs)]
                     rhs_n_shifts = [-s for s in reversed(rhs_n_shifts)]
 
@@ -549,7 +552,7 @@ def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type,
 
     result_component = apply_stencil(base_koeff, base_shifts)
     if masks is not None and stencil_tensors is not None:
-        input_valid_mask, output_valid_mask, one_sided_mask = masks
+        output_valid_mask, input_valid_mask, one_sided_mask = masks
         one_mask = one_sided_mask.with_values(1).with_extrapolation(extrapolation.ONE)
         for left_side, out_valid, in_valid in product([0, 1], repeat=3):
             stencils = stencil_tensors.left_side[left_side].out_valid[out_valid].in_valid[in_valid]
@@ -570,7 +573,7 @@ def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type,
     return result_component
 
 def tond(input):
-    return input.values.numpy(input.shape.names)
+    return input.numpy(input.shape.names)
 
 
 @jit_compile_linear(auxiliary_args="values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output")
