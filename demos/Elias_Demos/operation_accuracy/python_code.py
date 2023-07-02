@@ -249,7 +249,7 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
             "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
             "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
             ],
-        scalar_input=0, boundaries=1)
+        scalar_input=0, boundaries=0)
 
 
 
@@ -297,10 +297,10 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
 #         [
 #             partial(field.spatial_gradient, order=2, type=StaggeredGrid),
 #             # partial(field.spatial_gradient, order=1, type=StaggeredGrid, implicit=Solve('GMres', 1e-12, 1e-12)),
-#             partial(field.spatial_gradient, order=6, type=StaggeredGrid),
 #             # partial(field.spatial_gradient, order=40, type=StaggeredGrid),
 #             # partial(field.spatial_gradient, type=StaggeredGrid),
 #             partial(field.spatial_gradient, order=4, type=StaggeredGrid),
+#             partial(field.spatial_gradient, order=6, type=StaggeredGrid),
 #             # partial(field.spatial_gradient, order=60, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
 #             # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
 #         ],
@@ -309,7 +309,7 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
 #             "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
 #             "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
 #             ],
-#         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
+#         scalar_input=0, input_gridtype=CenteredGrid, boundaries=0)
 #
 # TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
 #         [
