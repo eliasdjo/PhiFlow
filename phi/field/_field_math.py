@@ -475,10 +475,12 @@ def spatial_gradient(field: CenteredGrid,
 
     # input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ZERO_GRADIENT]),
     #                                     field.extrapolation)
-    input_valid_ext = extrapolation.map(ext_list_to_map_func([]),
+    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO]),
                                         field.extrapolation)
+    # input_valid_ext = extrapolation.map(ext_list_to_map_func([]),
+    #                                     field.extrapolation)
     input_valid_mask = [mask.with_extrapolation(input_valid_ext) for mask in standard_mask]
-    one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.PERIODIC]), field.extrapolation)
+    one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.ZERO]), field.extrapolation)
     one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
 
     result_components = [apply_stencils(field, gradient_extrapolation, base_values, base_shifts, type, dim,
