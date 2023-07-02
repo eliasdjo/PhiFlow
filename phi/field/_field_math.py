@@ -448,16 +448,16 @@ def spatial_gradient(field: CenteredGrid,
 
     grad_dims = field.shape.only(dims).names
 
-    # #empty_base_mask
-    # base_res = field.resolution
 
     # boundary masks
+    if type == CenteredGrid:
+        standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial) for dim in grad_dims]
+    else:
+        standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial + spatial(**{dim: sum(gradient_extrapolation.valid_outer_faces(dim))-1})) for dim in grad_dims]
     output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
         extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in
         gradient_extrapolation.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
-    # output_valid_mask = field.with_values(0).with_extrapolation(output_valid_ext)
-    standard_mask = type(tensor([0, 0], channel(vector=grad_dims)), bounds=field.bounds, resolution=field.resolution)
-    output_valid_mask = standard_mask.with_extrapolation(output_valid_ext)
+    output_valid_mask = [mask.with_extrapolation(output_valid_ext) for mask in standard_mask]
 
     def ext_list_to_map_func(target_extrapolations):
         def f(ext: Extrapolation):
@@ -469,15 +469,13 @@ def spatial_gradient(field: CenteredGrid,
     #                                     field.extrapolation)
     input_valid_ext = extrapolation.map(ext_list_to_map_func([]),
                                         field.extrapolation)
-    # input_valid_mask = field.with_values(0).with_extrapolation(input_valid_ext)
-    input_valid_mask = standard_mask.with_extrapolation(input_valid_ext)
+    input_valid_mask = [mask.with_extrapolation(input_valid_ext) for mask in standard_mask]
     one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.PERIODIC]), field.extrapolation)
-    # one_sided_mask = field.with_values(0).with_extrapolation(one_sided_ext)
-    one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
+    one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
 
     result_components = [apply_stencils(field, gradient_extrapolation, base_values, base_shifts, type, dim,
                                            stencil_tensors=one_sided_stencil_tensor.left_right[0],
-                                           masks=(ovm, ivm, osm)) for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask.vector, input_valid_mask.vector, one_sided_mask.vector)]
+                                           masks=(ovm, ivm, osm)) for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask, input_valid_mask, one_sided_mask)]
 
     # for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
     #
@@ -502,7 +500,7 @@ def spatial_gradient(field: CenteredGrid,
         result = field.with_values(math.stack(result_components, stack_dim))
     else:
         result = StaggeredGrid(
-            math.stack([component.values for component in result_components], channel(vector=grad_dims)),
+            math.stack(result_components, channel(vector=grad_dims)),
             bounds=field.bounds, extrapolation=gradient_extrapolation)
     result = result.with_extrapolation(gradient_extrapolation)
 
@@ -518,7 +516,7 @@ def spatial_gradient(field: CenteredGrid,
 
     return result
 
-@jit_compile_linear(auxiliary_args="gradient_extrapolation, base_koeff, base_shifts, type, dim, masks, stencil_tensors")
+# @jit_compile_linear(auxiliary_args="gradient_extrapolation, base_koeff, base_shifts, type, dim, masks, stencil_tensors")
 def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None):
     from itertools import product
     spatial_dims = field.shape.spatial.names
