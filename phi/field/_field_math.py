@@ -101,7 +101,7 @@ def laplace(field: GridType,
 
     def apply_stencil(values_, needed_shifts_):
         base_widths = (abs(min(needed_shifts_)), max(needed_shifts_))
-        field.with_extrapolation(extrapolation.map(_ex_map_f(extrap_map), field.extrapolation))
+        # field.with_extrapolation(extrapolation.map(_ex_map_f(extrap_map), field.extrapolation))
         padded_components = [pad(field, {dim: base_widths}) for dim in axes_names]
         shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
                               padded_component, dim in zip(padded_components, axes_names)]
@@ -134,13 +134,12 @@ def laplace(field: GridType,
     if implicit:
         result_components = stack(result_components, channel('laplacian'))
         result_components.with_values(result_components.values._cache())
-        result_components = result_components.with_extrapolation(
-            extrapolation.map(_ex_map_f(extrap_map_rhs), field.extrapolation))
+        result_components = result_components
         implicit.x0 = result_components
         result_components = solve_linear(_rhs_for_implicit_scheme, result_components, solve=implicit,
                                          values_rhs=values_rhs, needed_shifts_rhs=needed_shifts_rhs,
                                          stack_dim=channel('laplacian'),
-                                         v_ns_b0_rhs=v_ns_b0_rhs)
+                                         v_ns_b0_rhs=v_ns_b0_rhs, staggered_output=False)
         result_components = unstack(result_components, 'laplacian')
         extrap_map = extrap_map_rhs
     result_components = [component.with_bounds(field.bounds) for component in result_components]
@@ -151,7 +150,7 @@ def laplace(field: GridType,
             axes_names), f"the channel dim of weights must contain all laplace dims {axes_names} but only has {channel(weights).item_names}"
         result_components = [c * weights[ax] for c, ax in zip(result_components, axes_names)]
     result = sum(result_components)
-    result = result.with_extrapolation(extrapolation.map(_ex_map_f(extrap_map), field.extrapolation))
+    result = result
     return result
 
 
@@ -228,7 +227,7 @@ def spatial_gradient(field: CenteredGrid,
                     coefficient_shifts = [n - 0.5 for n in n_shifts]
                     if input_boundary_valid:
                         del coefficient_shifts[-1]
-                        coefficient_shifts.insert(0, coefficient_shifts[0]-1)
+                        coefficient_shifts.insert(0, coefficient_shifts[0]-0.5)
                         del n_shifts[-1]
                         n_shifts.insert(0, n_shifts[0]-1)
                     n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
@@ -274,159 +273,6 @@ def spatial_gradient(field: CenteredGrid,
 
         return [v_ns_b0, rhs_v_ns_b0]
 
-    # if order == -1:
-    #     values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 1, [-1, 0, 1])
-    #     needed_shifts, needed_shifts_rhs = [-2, -1, 0, 1, 2], [-1, 0, 1]
-    # elif order == -2:
-    #     values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 1, [-2, -1, 0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2]
-    # elif order == -3:
-    #     values, values_rhs = get_coefficients([-1, 0, 1], 1, [-2, -1, 0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [-1, 0, 1], [-2, -1, 0, 1, 2]
-    # elif order == -4:
-    #     values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 1, [-1, 0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [-2, -1, 0, 1, 2], [-1, 0, 1, 2]
-    # elif order == -5:
-    #     values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 1, [0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [-2, -1, 0, 1, 2], [0, 1, 2]
-    # elif order == -6:
-    #     values, values_rhs = get_coefficients([-1, 0, 1, 2, 3], 1, [0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [-1, 0, 1, 2, 3], [0, 1, 2]
-    # elif order == -7:
-    #     values, values_rhs = get_coefficients([0, 1, 2, 3, 4], 1, [0, 1, 2])
-    #     needed_shifts, needed_shifts_rhs = [0, 1, 2, 3, 4], [0, 1, 2]
-    # elif order == -8:
-    #     values, values_rhs = get_coefficients([-1, 0, 1, 2, 3], 1, [-1, 0, 1])
-    #     needed_shifts, needed_shifts_rhs = [-1, 0, 1, 2, 3], [-1, 0, 1]
-    # elif order == 120:
-    #     values, needed_shifts, values_rhs, \
-    #     needed_shifts_rhs, v_ns_b0, v_ns_b0_rhs = get_stencils(10,
-    #                                                        4,
-    #                                                        one_sided=order >= 10, staggered=type == StaggeredGrid)
-    # else:
-    # values, needed_shifts, values_rhs, \
-    # needed_shifts_rhs, v_ns_b0, v_ns_b0_rhs = get_stencils(int(order/10) if order >= 10 else order, 2 if implicit else 0,
-    #                                                    one_sided=order>=10, staggered=type==StaggeredGrid)
-
-    # v_ns_b0 = []
-    # if not implicit:
-    #     # if order == 1:
-    #     #     if type == CenteredGrid:
-    #     #         pass
-    #     #     else:
-    #     #         # values, needed_shifts = get_coefficients([0.5, 1.5], 1)[0], (1, 2)
-    #     #         # values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1)[0], (-1, 0, 1, 2)
-    #     #         # values, needed_shifts = get_coefficients([0.5, 1.5, 2.5, 3.5], 1)[0], (1, 2, 3, 4)
-    #     #         values, needed_shifts = get_coefficients([-0.5, 0.5, 1.5, 2.5], 1)[0], (0, 1, 2, 3)
-    #
-    #     if order == 2:
-    #         if type == CenteredGrid:
-    #             values, needed_shifts = get_coefficients([-1, 1], 1)[0], (-1, 1)
-    #             # values, needed_shifts = [-1/2, 1/2], (-1, 1)
-    #         else:
-    #             values, needed_shifts = get_coefficients([-1/2, 1/2], 1)[0], (0, 1)
-    #             # values, needed_shifts = [-1, 1], (0, 1)
-    #     elif order == 20:
-    #         if type == CenteredGrid:
-    #             values, needed_shifts = get_coefficients([-1, 1], 1)[0], (-1, 1)
-    #             v_ns_b0 = [(get_coefficients([0, 1], 1)[0], (0, 1))]
-    #             # values, needed_shifts = [-1 / 2, 1 / 2], (-1, 1)
-    #             # v_ns_b0 = [([-1, 1], (0, 1))]
-    #         else:
-    #             values, needed_shifts = get_coefficients([-0.5, 0.5], 1)[0], (0, 1)
-    #             v_ns_b0 = [(get_coefficients([0.5, 1.5], 1)[0], (1, 2))]
-    #     elif order == 4:
-    #         if type == CenteredGrid:
-    #             values, needed_shifts = get_coefficients([-2, -1, 0, 1, 2], 1)[0], (-2, -1, 0, 1, 2)
-    #             # values, needed_shifts = [1/12, -2/3, 2/3, -1/12], (-2, -1, 1, 2)
-    #         else:
-    #             values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1)[0], (-1, 0, 1, 2)
-    #             # values, needed_shifts = [1/24, -27/24, 27/24, -1/24], (-1, 0, 1, 2)
-    #     elif order == 40:
-    #         if type == CenteredGrid:
-    #             values, needed_shifts = get_coefficients([-2, -1, 1, 2], 1)[0], (-2, -1, 1, 2)
-    #             v_ns_b0 = [(get_coefficients([0, 1, 2, 3, 4], 1)[0], (0, 1, 2, 3, 4)),
-    #                        (get_coefficients([-1, 0, 1, 2, 3], 1)[0], (-1, 0, 1, 2, 3))]
-    #             # values, needed_shifts = [1 / 12, -2 / 3, 2 / 3, -1 / 12], (-2, -1, 1, 2)
-    #             # v_ns_b0 = [([-25/12, 48/12, -36/12, 16/12, -3/12], (0, 1, 2, 3, 4)),
-    #             # ([-3/12, -10/12, 18/12, -6/12, 1/12], (-1, 0, 1, 2, 3))]
-    #         else:
-    #             values, needed_shifts = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1)[0], (-1, 0, 1, 2)
-    #             v_ns_b0 = [(get_coefficients([0.5, 1.5, 2.5, 3.5], 1)[0], (1, 2, 3, 4)),
-    #                        (get_coefficients([-0.5, 0.5, 1.5, 2.5], 1)[0], (0, 1, 2, 3))]
-    #     else:
-    #         raise NotImplementedError(f"explicit {order}th-order not supported")
-    # else:
-    #     extrap_map_rhs = {}
-    #     v_ns_b0_rhs = []
-    #     # if order == 999:
-    #     #     if type == CenteredGrid:
-    #     #         pass
-    #     #     else:
-    #     #         # needed_shifts, needed_shifts_rhs = (-1, 0, 1, 2), (-1, 1, 0)
-    #     #         # values, values_rhs = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1, [-1, 1])
-    #     #         # values_rhs = values_rhs + [1]
-    #     #
-    #     #         vs_ns_b0_list = [get_coefficients([0.5, 1.5, 2.5, 3.5], 1, [1, 2]),
-    #     #                          get_coefficients([-0.5, 0.5, 1.5, 2.5], 1, [-1, 1])]
-    #     #
-    #     #         v_ns_b0 = [(vs_ns_b0_list[0][0], (1, 2, 3, 4)),
-    #     #                    (vs_ns_b0_list[1][0], (0, 1, 2, 3))]
-    #     #         v_ns_b0_rhs = [(vs_ns_b0_list[0][1] + [1], (1, 2, 0)),
-    #     #                        (vs_ns_b0_list[1][1] + [1], (-1, 1, 0))]
-    #     #
-    #     #         needed_shifts, needed_shifts_rhs = (0, 1, 2, 3), (-1, 1, 0)
-    #     #         values, values_rhs = vs_ns_b0_list[1][0], vs_ns_b0_list[1][1]+[1]
-    #     #
-    #     #         v_ns_b0 = []
-    #     #         v_ns_b0_rhs = []
-    #
-    #     if order == 6:
-    #         if type == CenteredGrid:
-    #             needed_shifts, needed_shifts_rhs = (-2, -1, 1, 2), (-1, 0, 1)
-    #             values, values_rhs = get_coefficients([-2, -1, 1, 2], 1, [-1, 0, 1])
-    #             # values, needed_shifts = [-1/36, -14/18, 14/18, 1/36], (-2, -1, 1, 2)
-    #             # values_rhs, needed_shifts_rhs = [1/3, 1, 1/3], (-1, 0, 1)
-    #         else:
-    #             needed_shifts, needed_shifts_rhs = (-1, 0, 1, 2), (-1, 0, 1)
-    #             values, values_rhs = get_coefficients([-3/2, -1/2, 1/2, 3/2], 1, [-1, 0, 1])
-    #             # values, needed_shifts = [-17/186, -63/62, 63/62, 17/186], (-1, 0, 1, 2)
-    #             # values_rhs, needed_shifts_rhs = [9/62, 1, 9/62], (-1, 0, 1)
-    #             extrap_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-    #             extrap_map_rhs['symmetric'] = combine_by_direction(ANTIREFLECT, ANTISYMMETRIC)
-    #     elif order == 60:
-    #         if type == CenteredGrid:
-    #             needed_shifts, needed_shifts_rhs = (-2, -1, 1, 2), (-1, 0, 1)
-    #             values, values_rhs = get_coefficients([-2, -1, 1, 2], 1, [-1, 0, 1])
-    #             vs_ns_b0_list = [get_coefficients([0, 1, 2, 3, 4, 5], 1, [0, 1]),
-    #                              get_coefficients([-1, 0, 1, 2, 3], 1, [-1, 0, 1])]
-    #
-    #             v_ns_b0 = [(vs_ns_b0_list[0][0], (0, 1, 2, 3, 4, 5)),
-    #                        (vs_ns_b0_list[1][0], (-1, 0, 1, 2, 3))]
-    #             v_ns_b0_rhs = [(vs_ns_b0_list[0][1], (0, 1)),
-    #                            (vs_ns_b0_list[1][1], (-1, 0, 1))]
-    #             # values, needed_shifts = [-1 / 36, -14 / 18, 14 / 18, 1 / 36], (-2, -1, 1, 2)
-    #             # v_ns_b0 = [([-197 / 60, -5 / 12, 5, -5 / 3, 5 / 12, -1 / 20], (0, 1, 2, 3, 4, 5)),
-    #             #            ([-43 / 96, -5 / 6, 9 / 8, 1 / 6, -1 / 96], (-1, 0, 1, 2, 3))]
-    #             # values_rhs, needed_shifts_rhs = [1 / 3, 1, 1 / 3], (-1, 0, 1)
-    #             # v_ns_b0_rhs = [([1, 5], (0, 1)), ([1/8, 1, 3/4], (-1, 0, 1))]
-    #         else:
-    #             needed_shifts, needed_shifts_rhs = (-1, 0, 1, 2), (-1, 1, 0)
-    #             values, values_rhs = get_coefficients([-1.5, -0.5, 0.5, 1.5], 1, [-1, 1])
-    #             values_rhs = values_rhs + [1]
-    #
-    #             vs_ns_b0_list = [get_coefficients([0.5, 1.5, 2.5, 3.5], 1, [1]),
-    #                              get_coefficients([-0.5, 0.5, 1.5, 2.5], 1, [-1, 1])]
-    #
-    #             v_ns_b0 = [(vs_ns_b0_list[0][0], (1, 2, 3, 4)),
-    #                        (vs_ns_b0_list[1][0], (0, 1, 2, 3))]
-    #             v_ns_b0_rhs = [(vs_ns_b0_list[0][1] + [1], (1, 0)),
-    #                            (vs_ns_b0_list[1][1] + [1], (-1, 1, 0))]
-    #     else:
-    #         raise NotImplementedError(f"implicit {order}th-order not supported")
-
-    # if implicit:
-    #     gradient_extrapolation = extrapolation.map(_ex_map_f(extrap_map_rhs), gradient_extrapolation)
 
     base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, implicit_order=implicitness,
                                                                               one_sided=False,
@@ -468,36 +314,16 @@ def spatial_gradient(field: CenteredGrid,
 
         return f
 
-    # input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ZERO_GRADIENT]),
-    #                                     field.extrapolation)
-    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO]),
+    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ZERO_GRADIENT]),
                                         field.extrapolation)
-    # input_valid_ext = extrapolation.map(ext_list_to_map_func([]),
-    #                                     field.extrapolation)
+
     input_valid_mask = [mask.with_extrapolation(input_valid_ext) for mask in standard_mask]
     one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.ZERO]), field.extrapolation)
     one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
 
-    result_components = [apply_stencils(field, gradient_extrapolation, base_values, base_shifts, type, dim,
-                                           stencil_tensors=one_sided_stencil_tensor.left_right[0],
-                                           masks=(ovm, ivm, osm)) for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask, input_valid_mask, one_sided_mask)]
-
-    # for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
-    #
-    #     one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
-    #     values_b0_top, needed_shifts_b0_top = [-val for val in reversed(values_b0)], [-shift+(1 if type == StaggeredGrid else 0) for shift in reversed(needed_shifts_b0)]
-    #     one_sided_components_top = apply_stencil(values_b0_top, needed_shifts_b0_top)
-    #
-    #     for dim_i, dim in enumerate(field.shape.spatial.names):
-    #         rc = result_components[dim_i]
-    #         shape = rc.values.shape
-    #         mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),   # math.expand(..., shape)
-    #                                                        tensor([i], instance('points')),
-    #                                                        tensor([1], instance('points')))
-    #
-    #         rc_tensor = math.where(mask_tensor, one_sided_components[dim_i].values, rc.values)
-    #         rc_tensor = math.where(mask_tensor.flip(dim), one_sided_components_top[dim_i].values, rc_tensor)
-    #         result_components[dim_i] = rc.with_values(rc_tensor)
+    result_components = [apply_stencils(field.values, field.extrapolation, gradient_extrapolation, field.dx.vector[dim], base_values, base_shifts, type, dim,
+                                           masks=(ovm, ivm, osm), stencil_tensors=one_sided_stencil_tensor.left_right[0], differencing_order=1)
+                         for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask, input_valid_mask, one_sided_mask)]
 
     stack_dim = stack_dim._with_item_names((grad_dims,))
 
@@ -509,10 +335,24 @@ def spatial_gradient(field: CenteredGrid,
             bounds=field.bounds, extrapolation=gradient_extrapolation)
     result = result.with_extrapolation(gradient_extrapolation)
 
-    # if implicit:
-    #     implicit.x0 = result
-    #     result = solve_linear(_rhs_for_implicit_scheme, result, solve=implicit, values_rhs=values_rhs, needed_shifts_rhs=needed_shifts_rhs,
-    #                           v_ns_b0_rhs=v_ns_b0_rhs, stack_dim=stack_dim, staggered_output=type!=CenteredGrid)
+    if implicit:
+        implicit.x0 = result
+        # result = solve_linear(_rhs_for_implicit_scheme, result, solve=implicit, values_rhs=base_rhs_values, needed_shifts_rhs=base_rhs_shifts,
+        #                       v_ns_b0_rhs=[], stack_dim=stack_dim, staggered_output=type!=CenteredGrid)
+
+
+        # apply_stencils(implicit.x0, result.vector[0].extrapolation, gradient_extrapolation,
+        #                field.dx.vector['x'], base_rhs_values, base_rhs_shifts, CenteredGrid, 'x',
+        #                masks=(output_valid_mask[0], input_valid_mask[0], one_sided_mask[0]),
+        #                stencil_tensors=one_sided_stencil_tensor.left_right[1], differencing_order=0)
+        implicit.x0 = result.values.vector[0]
+        result_components = [
+            solve_linear(apply_stencils, component.values, solve=implicit, field_extrapolation=component.extrapolation, gradient_extrapolation=gradient_extrapolation,
+                         field_dx=field.dx.vector[dim], base_koeff=base_rhs_values, base_shifts=base_rhs_shifts, type=CenteredGrid, dim=dim,
+                           masks=(ovm, ivm, osm), stencil_tensors=one_sided_stencil_tensor.left_right[1], differencing_order=0)
+            for component, dim, ovm, ivm, osm in zip(result.vector, grad_dims, output_valid_mask, input_valid_mask, one_sided_mask)]
+
+        result = result.with_values(math.stack(result_components, stack_dim))
 
     if type == CenteredGrid and gradient_extrapolation == math.extrapolation.NONE:
         result = result.with_bounds(Box(field.bounds.lower - field.dx, field.bounds.upper + field.dx))
@@ -521,12 +361,13 @@ def spatial_gradient(field: CenteredGrid,
 
     return result
 
-# @jit_compile_linear(auxiliary_args="gradient_extrapolation, base_koeff, base_shifts, type, dim, masks, stencil_tensors")
-def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None):
+@jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks, stencil_tensors, differencing_order")
+def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None, differencing_order=1):
     from itertools import product
     spatial_dims = field.shape.spatial.names
 
     def apply_stencil(values_, needed_shifts_):
+        # needed_shifts_ = list(math.to_int32(needed_shifts_))
         needed_shifts_ = [int(i) for i in needed_shifts_]
         base_widths = (max(-min(needed_shifts_), 0), max(max(needed_shifts_), 0))
 
@@ -536,19 +377,18 @@ def apply_stencils(field, gradient_extrapolation, base_koeff, base_shifts, type,
                 base_widths = (base_widths[0] + 1, base_widths[1] + 1)
                 std_widths = (1, 1)
         elif type == StaggeredGrid:
-            assert spatial_dims == field.shape.spatial.names, f"spatial_gradient with type=StaggeredGrid requires dims=spatial, i.e. dims='{','.join(field.shape.spatial.names)}'"
             base_widths = (base_widths[0], base_widths[1] - 1)
             border_valid = gradient_extrapolation.valid_outer_faces(dim)
             base_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
         else:
             raise ValueError(type)
 
-        padded_component = math.pad(field.values,
+        padded_component = math.pad(field,
                                     {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims},
-                                    field.extrapolation)
+                                    field_extrapolation)
 
         shifted_component = math.shift(padded_component, tuple(needed_shifts_), stack_dim=None, padding=None, dims=dim)
-        result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field.dx.vector[dim])
+        result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field_dx**differencing_order)
 
         return result_component
 
@@ -579,7 +419,7 @@ def tond(input):
 
 
 @jit_compile_linear(auxiliary_args="values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output")
-def _rhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output=False):
+def _rhs_for_implicit_scheme(x, values_rhs, needed_shifts_rhs, v_ns_b0_rhs, stack_dim, staggered_output):
     # result = []
     # for dim, component in zip(x.shape.only(math.spatial).names, unstack(x, stack_dim.name)):
     #     shifted = shift(component, needed_shifts_rhs, stack_dim=None, dims=dim)

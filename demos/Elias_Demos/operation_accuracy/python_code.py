@@ -1,3 +1,4 @@
+import math
 from functools import partial
 
 from phi.jax.flow import *
@@ -133,8 +134,8 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
             elif boundaries == 4:
                 extrapola = extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.ZERO)
             elif boundaries == 5:
-                extrapola = extrapolation.combine_sides(x=(extrapolation.PERIODIC, extrapolation.ConstantExtrapolation(100)),
-                                                        y=(extrapolation.ConstantExtrapolation(100), extrapolation.ZERO))
+                extrapola = extrapolation.combine_sides(x=(extrapolation.PERIODIC, math.nan),
+                                                        y=(math.nan, 0))
             else:
                 raise NotImplementedError
 
@@ -194,8 +195,8 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
              xy_nums=operations_strs)
 
 
-xy_nums = [5, 15, 35, 65, 105, 165, 225]
-# xy_nums = [35]
+# xy_nums = [5, 15, 35, 65, 105, 165, 225]
+xy_nums = [15]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [5, 65, 225]
 # xy_nums = [3]
@@ -208,16 +209,16 @@ xy_nums = [5, 15, 35, 65, 105, 165, 225]
 print('test done')
 # test = field.laplace(CenteredGrid(math.ones(spatial(x=2, y=3), channel(vector='x,y'))), order=6, implicit=Solve('CG', 1e-12, 1e-12))
 
-
+#
 # TestRun("laplacian", xy_nums, CenteredGrid,
 #         [
 #             # partial(field.laplace, order=1),
-#             partial(field.laplace, order=20),
-#             partial(field.laplace, order=40),
-#             partial(field.laplace),
-#             partial(field.laplace, order=4),
-#             partial(field.laplace, order=60, implicit=Solve('GMres', 1e-12, 1e-12)),
-#             partial(field.laplace, order=6, implicit=Solve('GMres', 1e-12, 1e-12))
+#             # partial(field.laplace, order=20),
+#             # partial(field.laplace, order=40),
+#             # partial(field.laplace),
+#             # partial(field.laplace, order=4),
+#             # partial(field.laplace, order=60, implicit=Solve('GMres', 1e-12, 1e-12)),
+#             partial(field.laplace, order=6, implicit=Solve('biCG-stab', 1e-12, 1e-12))
 #             ],
 #         tgv_velocity_laplacian, [
 #             "laplace_os", "laplace_kamp_os", "laplace", "laplace_kamp",
@@ -244,22 +245,23 @@ print('test done')
 
 
 
-# TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
-#         [
-#             partial(field.spatial_gradient, order=2),
-#             partial(field.spatial_gradient, order=4),
-#             partial(field.spatial_gradient, order=6),
-#             # partial(field.spatial_gradient, order=40),
-#             # partial(field.spatial_gradient),
-#             # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12)),
-#             # partial(field.spatial_gradient, order=60, implicit=Solve('GMres', 1e-12, 1e-12)),
-#             ],
-#         tgv_velocity_gradient_fst_comp,
-#         [
-#             "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
-#             "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
-#             ],
-#         scalar_input=0, boundaries=4)
+TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
+        [
+            # partial(field.spatial_gradient, order=2),
+            # partial(field.spatial_gradient, order=4),
+            # partial(field.spatial_gradient, order=6),
+            partial(field.spatial_gradient, order=6, implicit=Solve('biCG-stab', 1e-12, 1e-12), implicitness=2),
+            # partial(field.spatial_gradient, order=40),
+            # partial(field.spatial_gradient),
+            # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12)),
+            # partial(field.spatial_gradient, order=60, implicit=Solve('GMres', 1e-12, 1e-12)),
+            ],
+        tgv_velocity_gradient_fst_comp,
+        [
+            "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
+            "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
+            ],
+        scalar_input=0, boundaries=0)
 
 
 
@@ -303,23 +305,23 @@ print('test done')
 #             ],
 #         scalar_input=0)
 
-TestRun("gradient_staggered_fst_comp", xy_nums, StaggeredGrid,
-        [
-            # partial(field.spatial_gradient, order=2, type=StaggeredGrid),
-            # partial(field.spatial_gradient, order=1, type=StaggeredGrid, implicit=Solve('GMres', 1e-12, 1e-12)),
-            # partial(field.spatial_gradient, order=40, type=StaggeredGrid),
-            partial(field.spatial_gradient, type=StaggeredGrid),
-            partial(field.spatial_gradient, order=4, type=StaggeredGrid),
-            partial(field.spatial_gradient, order=6, type=StaggeredGrid),
-            # partial(field.spatial_gradient, order=60, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
-            # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
-        ],
-        tgv_velocity_gradient_fst_comp,
-        [
-            "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
-            "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
-            ],
-        scalar_input=0, input_gridtype=CenteredGrid, boundaries=4)
+# TestRun("gradient_staggered_fst_comp", xy_nums, StaggeredGrid,
+#         [
+#             # partial(field.spatial_gradient, order=2, type=StaggeredGrid),
+#             # partial(field.spatial_gradient, order=1, type=StaggeredGrid, implicit=Solve('GMres', 1e-12, 1e-12)),
+#             # partial(field.spatial_gradient, order=40, type=StaggeredGrid),
+#             partial(field.spatial_gradient, type=StaggeredGrid),
+#             partial(field.spatial_gradient, order=4, type=StaggeredGrid),
+#             partial(field.spatial_gradient, order=6, type=StaggeredGrid),
+#             # partial(field.spatial_gradient, order=60, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
+#             # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12), type=StaggeredGrid),
+#         ],
+#         tgv_velocity_gradient_fst_comp,
+#         [
+#             "spatial_gradient_lo_os", "spatial_gradient_kamp_os", "spatial_gradient_lo",
+#             "spatial_gradient_kamp", "spatial_gradient_laiz_os", "spatial_gradient_laiz"
+#             ],
+#         scalar_input=0, input_gridtype=CenteredGrid, boundaries=5)
 #
 # TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
 #         [
