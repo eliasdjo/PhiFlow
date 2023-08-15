@@ -726,6 +726,7 @@ class Tensor:
             return self * other
         match = other.shape.only(dims, reorder=True)
         if not match:
+            print(non_batch(other).non_dual.rank)
             assert non_batch(other).non_dual.rank == 1, f"Cannot multiply {self.shape} @ {other.shape} because arg2 does not have appropriate non-dual dimensions"
             match = non_batch(other).non_dual
         assert len(dims) == match.rank, f"Dual dimensions {dual} do not match shape of second argument {other.shape}"

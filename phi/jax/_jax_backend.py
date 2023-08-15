@@ -41,12 +41,20 @@ class JaxBackend(Backend):
             warnings.warn(f"{err}", RuntimeWarning)
             self.rnd_key = None
 
-    def linear_solve(self, method: str, lin, y, x0, tol_sq, max_iter) -> SolveResult:
-        if method == 'GMres':
-            x, info = jax.scipy.sparse.linalg.gmres(lin, y, x0, tol=1e-12)
-            return SolveResult(f'', x, None, [0], [0], [True], [False], [""])
-        else:
-            raise Exception()
+    # def linear_solve(self,
+    #                  method: str,
+    #                  lin: Union[Callable, TensorType],
+    #                  y: TensorType,
+    #                  x0: TensorType,
+    #                  rtol,
+    #                  atol,
+    #                  max_iter,
+    #                  pre) -> SolveResult:
+    #     if method == 'biCG-stab':
+    #         x, info = jax.scipy.sparse.linalg.gmres(lin, y, x0, tol=1e-12)
+    #         return SolveResult(f'', x, None, [0], [0], [True], [False], [""])
+    #     else:
+    #         raise Exception()
 
     def prefers_channels_last(self) -> bool:
         return True
