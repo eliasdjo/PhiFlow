@@ -310,6 +310,7 @@ def spatial_gradient(field: CenteredGrid,
 
     def ext_list_to_map_func(target_extrapolations):
         def f(ext: Extrapolation):
+            test = ext in [target_extrapolations[0]]
             return extrapolation.ONE if ext in target_extrapolations else extrapolation.ZERO
 
         return f
@@ -318,7 +319,7 @@ def spatial_gradient(field: CenteredGrid,
                                         field.extrapolation)
 
     input_valid_mask = [mask.with_extrapolation(input_valid_ext) for mask in standard_mask]
-    one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(100), extrapolation.ZERO]), field.extrapolation)
+    one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(math.nan), extrapolation.ConstantExtrapolation(100), extrapolation.ZERO, extrapolation.PERIODIC]), field.extrapolation)
     one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
 
     result_components = [apply_stencils(field.values, field.extrapolation, gradient_extrapolation, field.dx.vector[dim], base_values, base_shifts, type, dim,
@@ -404,12 +405,15 @@ def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx,
             isolation_mask = 0          # for obstacles we will have to tinker around here
             for i, stencils_i in enumerate(stencils.position):
                 values_b0, needed_shifts_b0 = stencils_i.koeff_shifts
-                if len(values_b0) != 0 and len(values_b0) != 0:
-                    one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+                if len(values_b0) != 0 and len(values_b0) != 0 and i == 0 and left_side == out_valid == in_valid == 0:
+                    rc = apply_stencil(values_b0, needed_shifts_b0)
 
-                    mask_ = shift(mask, ((i+1) if left_side else -(i+1),), dims=dim, stack_dim=None)[0].values - isolation_mask
-                    isolation_mask = isolation_mask + mask_
-                    rc = result_component * (1 - mask_) + one_sided_components * mask_
+                    # one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
+                    # mask_ = shift(mask, ((i+1) if left_side else -(i+1),), dims=dim, stack_dim=None)[0].values - isolation_mask
+                    # isolation_mask = isolation_mask + mask_
+                    # # rc = result_component * (1 - mask_) + one_sided_components * mask_
+                    # rc = math.where(mask_, one_sided_components, result_component)
+
                     result_component = rc
 
     return result_component

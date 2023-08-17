@@ -122,7 +122,10 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
 
             print(f"xy_num: {xy_num}")
 
-            if boundaries == 0:
+
+            if boundaries == -1:
+                extrapola = math.nan
+            elif boundaries == 0:
                 extrapola = extrapolation.PERIODIC
             elif boundaries == 1:
                 extrapola = extrapolation.ConstantExtrapolation(100)
@@ -196,10 +199,10 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
 
 
 # xy_nums = [5, 15, 35, 65, 105, 165, 225]
-xy_nums = [15]
+# xy_nums = [10, 12, 14]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [5, 65, 225]
-# xy_nums = [3]
+xy_nums = [20]
 # xy_nums = [2]
 # xy_nums = [5, 15, 35]
 
@@ -250,7 +253,9 @@ TestRun("gradient_fst_comp", xy_nums, CenteredGrid,
             # partial(field.spatial_gradient, order=2),
             # partial(field.spatial_gradient, order=4),
             # partial(field.spatial_gradient, order=6),
-            partial(field.spatial_gradient, order=6, implicit=Solve('biCG-stab', 1e-12, 1e-12), implicitness=2),
+            partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+            # partial(field.spatial_gradient, order=8, implicit=Solve('biCG-stab', 1e-12, 1e-12), implicitness=4),
+
             # partial(field.spatial_gradient, order=40),
             # partial(field.spatial_gradient),
             # partial(field.spatial_gradient, order=6, implicit=Solve('GMres', 1e-12, 1e-12)),
