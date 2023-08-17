@@ -276,7 +276,10 @@ class ConstantExtrapolation(Extrapolation):
         return math.expand(self.value, shape)
 
     def __eq__(self, other):
-        return isinstance(other, ConstantExtrapolation) and math.close(self.value, other.value)
+        if math.is_nan(self.value):
+            return isinstance(other, ConstantExtrapolation) and math.is_nan(other.value)
+        else:
+            return isinstance(other, ConstantExtrapolation) and math.close(self.value, other.value)
 
     def __hash__(self):
         return hash(self.__class__)
