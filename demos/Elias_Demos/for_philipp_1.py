@@ -1,5 +1,6 @@
 from demos.Elias_Demos.fd_coefficient_calc3 import get_coefficients
 from phi.jax.flow import *
+# from phi.math import tensor, batch
 
 def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False,
                  output_boundary_valid=False, input_boundary_valid=False):
@@ -87,6 +88,22 @@ b = [
             for out_valid in [False, True]]
         for left_side in [False, True]]
 
+c = [
+        [
+            [get_stencils(6, implicit_order=2, one_sided=True, left_border_one_sided=left_side,
+                          staggered=False, output_boundary_valid=out_valid,
+                          input_boundary_valid=in_valid)
+             for in_valid in [True, False]]
+            for out_valid in [False, True]]
+        for left_side in [False, True]]
+
+
 a = tensor(a, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
 b = tensor(b, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
-print(a == b)
+c = tensor(c, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
+
+# not working
+# print(a == b)
+
+# only working with the change i made in "_tensors.py" lines 228-230
+print(bool(a == c))

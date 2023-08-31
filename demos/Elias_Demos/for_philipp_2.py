@@ -69,6 +69,7 @@ def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided
 
     return [v_ns_b0, rhs_v_ns_b0]
 
+
 a = [
         [
             [get_stencils(6, implicit_order=2, one_sided=True, left_border_one_sided=left_side,
@@ -79,4 +80,22 @@ a = [
         for left_side in [False, True]]
 
 
-a = tensor(a, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
+# for l1 in a:
+#     for l2 in l1:
+#         for l3 in l2:
+#             for l4 in l3:
+#                 for l5 in l4:
+#                     for l6 in l5:
+#                         a6 = tensor(l6, batch('values'))
+
+
+l1_list = []
+for l1 in a:
+    l2_list = []
+    for l2 in l1:
+        l2_list.append(tensor(l2, batch('in_valid', 'left_right', 'position', 'koeff_shifts', 'values')))
+    l1_list.append(stack(l2_list, batch('out_valid')))
+a = stack(l1_list, batch('left_side'))
+
+
+# a = tensor(a, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))

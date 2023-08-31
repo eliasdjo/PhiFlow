@@ -248,14 +248,14 @@ print('test done')
 
 
 # for i in [0]:
-for i in range(6):
+for i in range(1):
     for g in [StaggeredGrid]:
     # for g in [CenteredGrid, StaggeredGrid]:
         TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
                 [
-                    # partial(field.spatial_gradient, order=2, type=g),
-                    # partial(field.spatial_gradient, order=4, type=g),
-                    # partial(field.spatial_gradient, order=6, type=g),
+                    partial(field.spatial_gradient, order=2, type=g),
+                    partial(field.spatial_gradient, order=4, type=g),
+                    partial(field.spatial_gradient, order=6, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=4, type=g),
                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
