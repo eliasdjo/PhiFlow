@@ -258,13 +258,14 @@ for i in range(6):
                     partial(field.spatial_gradient, order=2, type=g),
                     partial(field.spatial_gradient, order=4, type=g),
                     partial(field.spatial_gradient, order=6, type=g),
+                    partial(field.spatial_gradient, order=8, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-11, 1e-11), implicitness=4, type=g),
                     ],
                 tgv_velocity_gradient_fst_comp,
-                ["ord_2", "ord_4", "ord_6", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
+                ["ord_2", "ord_4", "ord_6", "ord_8", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
                 scalar_input=0, input_gridtype=CenteredGrid, boundaries=i)
 
 
