@@ -80,22 +80,17 @@ a = [
         for left_side in [False, True]]
 
 
+# l1_list = []
 # for l1 in a:
+#     l2_list = []
 #     for l2 in l1:
-#         for l3 in l2:
-#             for l4 in l3:
-#                 for l5 in l4:
-#                     for l6 in l5:
-#                         a6 = tensor(l6, batch('values'))
+#         l2_list.append(tensor(l2, batch('in_valid', 'left_right', 'position', 'koeff_shifts', 'values')))
+#     l1_list.append(stack(l2_list, batch('out_valid'))) # failed hier
+# a = stack(l1_list, batch('left_side'))
 
 
-l1_list = []
-for l1 in a:
-    l2_list = []
-    for l2 in l1:
-        l2_list.append(tensor(l2, batch('in_valid', 'left_right', 'position', 'koeff_shifts', 'values')))
-    l1_list.append(stack(l2_list, batch('out_valid')))
-a = stack(l1_list, batch('left_side'))
-
-
-# a = tensor(a, batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
+l1 = a[0]
+l2_list = []
+for l2 in l1:
+    l2_list.append(tensor(l2, batch('in_valid', 'left_right', 'position', 'koeff_shifts', 'values')))
+l1_list = stack(l2_list, batch('out_valid'))    # failed hier
