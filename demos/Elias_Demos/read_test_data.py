@@ -1,7 +1,5 @@
 import numpy as np
 from phi.flow import *
-import matplotlib.pyplot as plt
-
 names = [
     # "test_impl_os",
     # "gradient_fst_comp_bnd_0",
@@ -9,13 +7,13 @@ names = [
     # "gradient_fst_comp_bnd_4",
     # "gradient_fst_comp_bnd_2",
     # "gradient_fst_comp_bnd_3",
-    "gradient_fst_comp_bnd_5",
-    # "gradient_fst_comp_staggered_bnd_0",
-    # "gradient_fst_comp_staggered_bnd_1",
-    # "gradient_fst_comp_staggered_bnd_4",
-    # "gradient_fst_comp_staggered_bnd_2",
-    # "gradient_fst_comp_staggered_bnd_3",
-    # "gradient_fst_comp_staggered_bnd_5",
+    # "gradient_fst_comp_bnd_5",
+    "gradient_fst_comp_staggered_bnd_0",
+    "gradient_fst_comp_staggered_bnd_1",
+    "gradient_fst_comp_staggered_bnd_2",
+    "gradient_fst_comp_staggered_bnd_3",
+    "gradient_fst_comp_staggered_bnd_4",
+    "gradient_fst_comp_staggered_bnd_5",
     # "gradient_staggered_fst_comp",
     # "gradient_snd_comp",
     # "gradient_staggered_snd_comp",
@@ -28,6 +26,8 @@ names = [
     # "gradient_both_comp",
     # "gradient_both_comp_stagg"
 ]
+import matplotlib.pyplot as plt
+
 prefix = "operation_accuracy/data/"
 
 #

@@ -198,24 +198,28 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
              xy_nums=operations_strs)
 
 
-
-# not working
+# diverges  - biCG-stab
 # TestRun(f"test", [35], CenteredGrid,
-#         [partial(field.spatial_gradient, order=6, implicit=Solve('biCG-stab(2)', 1e-12, 1e-12), implicitness=2, type=CenteredGrid)],
-#         tgv_velocity_gradient_fst_comp, ["ord_2", "ord_4", "ord_6", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
+#         [partial(field.spatial_gradient, order=6, implicit=Solve('biCG-stab', 1e-12, 1e-12), implicitness=2, type=CenteredGrid)],
+#         tgv_velocity_gradient_fst_comp, ["ord_2"],
 #         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
 
-# working and errors are appropriately low
-# not working if "_field_math.py" line 371 is deactivated
 
-TestRun(f"test", [35], CenteredGrid,
-        [partial(field.spatial_gradient, order=6, implicit=Solve('scipy-biCG-stab', 1e-12, 1e-12), implicitness=2, type=CenteredGrid)],
-        tgv_velocity_gradient_fst_comp, ["ord_2", "ord_4", "ord_6", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
+# works - biCG-stab(2)
+# TestRun(f"test", [35], CenteredGrid,
+#         [partial(field.spatial_gradient, order=6, implicit=Solve('biCG-stab(2)', 1e-12, 1e-12), implicitness=2, type=CenteredGrid)],
+#         tgv_velocity_gradient_fst_comp, ["ord_2"],
+#         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
+
+
+# works only if _field_math.py apply_stencils (line 337) is not jit linear compiled
+TestRun(f"test", [35], StaggeredGrid,
+        [partial(field.spatial_gradient, order=2, type=StaggeredGrid)],
+        tgv_velocity_gradient_fst_comp, ["ord_2"],
         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
 
-TestRun(f"test", [35], CenteredGrid,
-        [partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=CenteredGrid)],
-        tgv_velocity_gradient_fst_comp, ["ord_2", "ord_4", "ord_6", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
-        scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
+
+
+
 
 print("done")

@@ -144,6 +144,7 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
 
             DOMAIN = dict(x=xy_num, y=xy_num, extrapolation=extrapola,
                           bounds=Box['x,y', 0:2 * math.pi, 0:2 * math.pi])
+
             if scalar_output:
                 anal_sol = CenteredGrid(anal_sol_func, **DOMAIN)
             else:
@@ -156,7 +157,6 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
                     input = input_gridtype(partial(tgv_velocity, vis=0, t=0), **DOMAIN).vector[scalar_input]
                 else:
                     input = input_gridtype(partial(tgv_velocity, vis=0, t=0), **DOMAIN)
-
             op_args = [input]
             for is_func, arg in operation_args:
                 if not is_func:
@@ -186,6 +186,7 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
             #         show()
 
             error = math.sum(math.abs(anal_sol.values - operation_result.values)) / xy_num ** 2
+
             print(error)
 
             error_point = math.stack([tensor(xy_num), error], channel('vector'))
@@ -201,8 +202,8 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
 xy_nums = [5, 15, 35, 65, 105, 165, 225]
 # xy_nums = [10, 12, 14]
 # xy_nums = [35, 65, 105, 165, 225]
-# xy_nums = [5, 65, 225]
-# xy_nums = [20]
+# xy_nums = [15, 22, 35, 65, 105]
+# xy_nums = [65]
 # xy_nums = [2]
 # xy_nums = [5, 15, 35]
 
@@ -248,7 +249,8 @@ print('test done')
 
 
 # for i in [0]:
-for i in range(1):
+for i in range(6):
+# for i in [1]:
     for g in [StaggeredGrid]:
     # for g in [CenteredGrid, StaggeredGrid]:
         TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
@@ -257,9 +259,9 @@ for i in range(1):
                     partial(field.spatial_gradient, order=4, type=g),
                     partial(field.spatial_gradient, order=6, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
-                    partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=4, type=g),
+                    partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
-                    partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=4, type=g),
+                    partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-11, 1e-11), implicitness=4, type=g),
                     ],
                 tgv_velocity_gradient_fst_comp,
                 ["ord_2", "ord_4", "ord_6", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
