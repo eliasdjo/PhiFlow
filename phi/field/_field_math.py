@@ -307,10 +307,10 @@ def spatial_gradient(field: CenteredGrid,
         standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial) for dim in grad_dims]
     else:
         standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial + spatial(**{dim: sum(gradient_extrapolation.valid_outer_faces(dim))-1})) for dim in grad_dims]
-    # output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
-    #     extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in
-    #     gradient_extrapolation.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
-    output_valid_ext = extrapolation.ZERO
+    output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
+        extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in
+        gradient_extrapolation.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
+    # output_valid_ext = extrapolation.ZERO
     output_valid_mask = [mask.with_extrapolation(output_valid_ext) for mask in standard_mask]
 
     def ext_list_to_map_func(target_extrapolations):
@@ -327,7 +327,8 @@ def spatial_gradient(field: CenteredGrid,
                                                             extrapolation.ConstantExtrapolation(10000),
                                                             extrapolation.ConstantExtrapolation(100),
                                                             extrapolation.ZERO,
-                                                            extrapolation.ZERO_GRADIENT]), field.extrapolation)
+                                                            extrapolation.ZERO_GRADIENT,
+                                                            extrapolation.SYMMETRIC]), field.extrapolation)
     # one_sided_ext = extrapolation.ONE
     one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
 
