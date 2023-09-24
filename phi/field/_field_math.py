@@ -214,12 +214,12 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
                     n_values, n_values_rhs = get_coefficients(coefficient_shifts, differentiation_order, rhs_n_shifts)
 
                 if left_border_one_sided:
-                    n_values = [-v for v in reversed(n_values)]
+                    n_values = [v*(-1)*differentiation_order for v in reversed(n_values)]
                     if staggered:
                         n_shifts = [-s+1 for s in reversed(n_shifts)]
                     else:
                         n_shifts = [-s for s in reversed(n_shifts)]
-                    n_values_rhs = [v for v in reversed(n_values_rhs)]
+                    n_values_rhs = [v*(-1)*(differentiation_order+1) for v in reversed(n_values_rhs)]
                     rhs_n_shifts = [-s for s in reversed(rhs_n_shifts)]
 
                 v_ns_b0.insert(0, [n_values, n_shifts])
