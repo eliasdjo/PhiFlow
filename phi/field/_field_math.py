@@ -205,18 +205,18 @@ def spatial_gradient(field: CenteredGrid,
     else:
         assert implicit is not None, "for implicit treatment a `Solve` is required"
 
+    grad_dims = field.shape.only(grad_dims).names
+    stack_dim = stack_dim._with_item_names((grad_dims,))
 
     result_components = [perform_finite_difference_operation(field.values, dim, 1, field.dx.vector[dim], field.extrapolation, gradient_extrapolation, type, order, implicit, implicitness)
-                         for dim in grad_dims]
-
-    stack_dim = stack_dim._with_item_names((grad_dims,))
+                         for dim in field.shape.only(grad_dims).names]
 
     if type == CenteredGrid:
         result = field.with_values(math.stack(result_components, stack_dim))
         result = result.with_extrapolation(gradient_extrapolation)
     else:
         result = StaggeredGrid(
-            math.stack(result_components, channel(vector=grad_dims)),
+            math.stack(result_components, stack_dim),
             bounds=field.bounds, extrapolation=gradient_extrapolation)
 
     if type == CenteredGrid and gradient_extrapolation == math.extrapolation.NONE:
@@ -242,7 +242,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
-    else:
+    elif implicitness != 0:
         assert implicit is not None, "for implicit treatment a `Solve` is required"
 
     assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
@@ -371,8 +371,9 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
     # one_sided_ext = extrapolation.ONE
     one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
 
-    result = apply_stencils(field, ext, output_ext, dx, base_values, base_shifts, type, dim,
-                            masks=(output_valid_mask, input_valid_mask, one_sided_mask), stencil_tensors=left_one_sided_stencil_tensor, differencing_order=differentiation_order)
+    result = apply_stencils(field, ext, output_ext, dx, base_values, base_shifts, output_type, dim,
+                            masks=(output_valid_mask, input_valid_mask, one_sided_mask), stencil_tensors=left_one_sided_stencil_tensor,
+                            differencing_order=differentiation_order)
 
     if implicit:
         implicit.x0 = result
