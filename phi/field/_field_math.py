@@ -42,7 +42,8 @@ def laplace(field: GridType,
             axes=spatial,
             order=2,
             implicit: math.Solve = None,
-            weights: Union[Tensor, Field] = None) -> GridType:
+            weights: Union[Tensor, Field] = None,
+            implicitness: int = None) -> GridType:
     """
     Spatial Laplace operator for scalar grid.
     If a vector grid is passed, it is assumed to be centered and the laplace is computed component-wise.
@@ -61,97 +62,25 @@ def laplace(field: GridType,
     Returns:
         laplacian field as `CenteredGrid`
     """
-    if isinstance(weights, Field):
-        weights = weights.at(field).values
-    axes_names = field.shape.only(axes).names
-    extrap_map = {}
-    v_ns_b0_rhs = []
-    if not implicit:
-        if order == 1:
-            values, needed_shifts = get_coefficients([0, 1, 2, 3, 4], 2)[0], (0, 1, 2, 3, 4)
-        if order == 2:
-            values, needed_shifts = [1, -2, 1], (-1, 0, 1)
-        elif order == 20:
-            values, needed_shifts = get_coefficients([-1, 0, 1], 2)[0], (-1, 0, 1)
-            v_ns_b0 = [(get_coefficients([0, 1, 2], 2)[0], (0, 1, 2))]
-        elif order == 4:
-            values, needed_shifts = [-1 / 12, 4 / 3, -5 / 2, 4 / 3, -1 / 12], (-2, -1, 0, 1, 2)
-        elif order == 40:
-            values, needed_shifts = get_coefficients([-2, -1, 0, 1, 2], 2)[0], (-2, -1, 0, 1, 2)
-            v_ns_b0 = [(get_coefficients([0, 1, 2, 3, 4], 2)[0], (0, 1, 2, 3, 4)),
-                       (get_coefficients([-1, 0, 1, 2, 3], 2)[0], (-1, 0, 1, 2, 3))]
-    else:
-        extrap_map_rhs = {}
-        if order == 6:
-            values, needed_shifts = [3 / 44, 12 / 11, -51 / 22, 12 / 11, 3 / 44], (-2, -1, 0, 1, 2)
-            extrap_map['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-            values_rhs, needed_shifts_rhs = [2 / 11, 1, 2 / 11], (-1, 0, 1)
-            extrap_map_rhs['symmetric'] = combine_by_direction(REFLECT, SYMMETRIC)
-        elif order == 60:
-            needed_shifts, needed_shifts_rhs = (-2, -1, 0, 1, 2), (-1, 0, 1)
-            values, values_rhs = get_coefficients([-2, -1, 0, 1, 2], 2, [-1, 0, 1])
 
-            vs_ns_b0_list = [get_coefficients([0, 1, 2, 3, 4], 2, [0, 1]),
-                             get_coefficients([-1, 0, 1, 2, 3], 2, [-1, 0, 1])]
+    if implicitness is None:
+        implicitness = 0 if implicit is None else 2
+    elif implicitness != 0:
+        assert implicit is not None, "for implicit treatment a `Solve` is required"
 
-            v_ns_b0 = [(vs_ns_b0_list[0][0], (0, 1, 2, 3, 4)),
-                       (vs_ns_b0_list[1][0], (-1, 0, 1, 2, 3))]
-            v_ns_b0_rhs = [(vs_ns_b0_list[0][1], (0, 1)),
-                           (vs_ns_b0_list[1][1], (-1, 0, 1))]
+    laplace_dims = field.shape.only(axes).names
+    result_components = [perform_finite_difference_operation(field.values, dim, 2, field.dx.vector[dim], field.extrapolation,
+                                                             field.extrapolation, CenteredGrid, order, implicit) for dim in laplace_dims]
 
-    def apply_stencil(values_, needed_shifts_):
-        base_widths = (abs(min(needed_shifts_)), max(needed_shifts_))
-        # field.with_extrapolation(extrapolation.map(_ex_map_f(extrap_map), field.extrapolation))
-        padded_components = [pad(field, {dim: base_widths}) for dim in axes_names]
-        shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
-                              padded_component, dim in zip(padded_components, axes_names)]
-        result_components = [
-            sum([value * shift_ for value, shift_ in zip(values_, shifted_component)]) / field.dx.vector[dim] ** 2 for
-            shifted_component, dim in zip(shifted_components, axes_names)]
-        return result_components
-
-    result_components = apply_stencil(values, needed_shifts)
-
-    if order >= 10:
-        for i, (values_b0, needed_shifts_b0) in enumerate(v_ns_b0):
-
-            one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
-            values_b0_top, needed_shifts_b0_top = [val for val in reversed(values_b0)], [
-                -shift + (1 if type == StaggeredGrid else 0) for shift in reversed(needed_shifts_b0)]
-            one_sided_components_top = apply_stencil(values_b0_top, needed_shifts_b0_top)
-
-            for dim_i, dim in enumerate(field.shape.spatial.names):
-                rc = result_components[dim_i]
-                shape = rc.values.shape
-                mask_tensor = math.zeros(shape) + math.scatter(math.zeros(shape.only(dim)),
-                                                               tensor([i], instance('points')),
-                                                               tensor([1], instance('points')))
-
-                rc_tensor = math.where(mask_tensor, one_sided_components[dim_i].values, rc.values)
-                rc_tensor = math.where(mask_tensor.flip(dim), one_sided_components_top[dim_i].values, rc_tensor)
-                result_components[dim_i] = rc.with_values(rc_tensor)
-
-    if implicit:
-        result_components = stack(result_components, channel('laplacian'))
-        result_components.with_values(result_components.values._cache())
-        result_components = result_components
-        implicit.x0 = result_components
-        result_components = solve_linear(_rhs_for_implicit_scheme, result_components, solve=implicit,
-                                         values_rhs=values_rhs, needed_shifts_rhs=needed_shifts_rhs,
-                                         stack_dim=channel('laplacian'),
-                                         v_ns_b0_rhs=v_ns_b0_rhs, staggered_output=False)
-        result_components = unstack(result_components, 'laplacian')
-        extrap_map = extrap_map_rhs
     result_components = [component.with_bounds(field.bounds) for component in result_components]
     if weights is not None:
         assert channel(weights).rank == 1 and channel(
             weights).item_names is not None, f"weights must have one channel dimension listing the laplace dims but got {shape(weights)}"
-        assert set(channel(weights).item_names[0]) >= set(
-            axes_names), f"the channel dim of weights must contain all laplace dims {axes_names} but only has {channel(weights).item_names}"
-        result_components = [c * weights[ax] for c, ax in zip(result_components, axes_names)]
+        assert set(channel(weights).item_names[0]) >= set(laplace_dims), f"the channel dim of weights must contain all laplace dims {laplace_dims} but only has {channel(weights).item_names}"
+        result_components = [c * weights[ax] for c, ax in zip(result_components, laplace_dims)]
+
     result = sum(result_components)
-    result = result
-    return result
+    return field.with_values(result)
 
 
 def spatial_gradient(field: CenteredGrid,
@@ -202,13 +131,14 @@ def spatial_gradient(field: CenteredGrid,
 
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
-    else:
+    elif implicitness != 0:
         assert implicit is not None, "for implicit treatment a `Solve` is required"
 
     grad_dims = field.shape.only(grad_dims).names
     stack_dim = stack_dim._with_item_names((grad_dims,))
 
-    result_components = [perform_finite_difference_operation(field.values, dim, 1, field.dx.vector[dim], field.extrapolation, gradient_extrapolation, type, order, implicit, implicitness)
+    result_components = [perform_finite_difference_operation(field.values, dim, 1, field.dx.vector[dim], field.extrapolation,
+                                                             gradient_extrapolation, type, order, implicit, implicitness)
                          for dim in field.shape.only(grad_dims).names]
 
     if type == CenteredGrid:
