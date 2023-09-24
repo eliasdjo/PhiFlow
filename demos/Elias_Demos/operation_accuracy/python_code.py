@@ -141,9 +141,9 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
                                                         y=(extrapolation.ConstantExtrapolation(10000), extrapolation.ZERO))
             elif boundaries == 10:
                 extrapola = extrapolation.combine_sides(
-                    # x=(extrapolation.PERIODIC, extrapolation.ConstantExtrapolation(10000)), # works work bc valid_outer_faces: (False, False)
-                    # x=(extrapolation.SYMMETRIC, extrapolation.PERIODIC) # works...
-                    x=(extrapolation.ConstantExtrapolation(10000), extrapolation.PERIODIC), # cant work bc valid_outer_faces: (False, False)
+                    # x=(extrapolation.PERIODIC, extrapolation.ConstantExtrapolation(10000)),   # works work bc valid_outer_faces: (False, False)
+                    # x=(extrapolation.SYMMETRIC, extrapolation.PERIODIC)   # works...
+                    x=(extrapolation.ConstantExtrapolation(10000), extrapolation.PERIODIC),     # cant work bc valid_outer_faces: (False, False)
                     y=extrapolation.PERIODIC)
             else:
                 raise NotImplementedError
@@ -209,7 +209,7 @@ xy_nums = [10, 35, 65, 105, 165, 225]
 # xy_nums = [10, 12, 14]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [15, 22, 35, 65, 105]
-# xy_nums = [35]
+# xy_nums = [65]
 # xy_nums = [2]
 # xy_nums = [5, 15, 35]
 
@@ -255,23 +255,27 @@ print('test done')
 
 
 # for i in [0]:
-# for i in range(2,5):
-for i in [10]:
+for i in range(0, 6):
+# for i in [0]:
     for g in [StaggeredGrid]:
     # for g in [CenteredGrid, StaggeredGrid]:
-        TestRun(f"t2_gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
+        TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
                 [
-                    # partial(field.spatial_gradient, order=2, type=g),
-                    # partial(field.spatial_gradient, order=4, type=g),
+                    partial(field.spatial_gradient, order=2, type=g),
+                    partial(field.spatial_gradient, order=4, type=g),
                     partial(field.spatial_gradient, order=6, type=g),
-                    # partial(field.spatial_gradient, order=8, type=g),
+                    partial(field.spatial_gradient, order=8, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     # partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
-                    # partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
+                    partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     # partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-11, 1e-11), implicitness=4, type=g),
                     ],
                 tgv_velocity_gradient_fst_comp,
-                ["ord_2", "ord_4", "ord_6", "ord_8", "ord_6_impl_2", "prd_6_impl_4", "ord_8_impl_2", "ord_8_impl_4"],
+                ["ord_2", "ord_4", "ord_6", "ord_8", "ord_6_impl_2",
+                 # "prd_6_impl_4",
+                 "ord_8_impl_2",
+                 # "ord_8_impl_4"
+                 ],
                 scalar_input=0, input_gridtype=CenteredGrid, boundaries=i)
 
 

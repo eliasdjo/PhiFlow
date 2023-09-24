@@ -157,7 +157,7 @@ def laplace(field: GridType,
 def spatial_gradient(field: CenteredGrid,
                      gradient_extrapolation: Extrapolation = None,
                      type: type = CenteredGrid,
-                     dims: math.DimFilter = spatial,
+                     grad_dims: math.DimFilter = spatial,
                      stack_dim: Shape = channel('vector'),
                      order=2,
                      implicit: Solve = None,
@@ -205,6 +205,48 @@ def spatial_gradient(field: CenteredGrid,
     else:
         assert implicit is not None, "for implicit treatment a `Solve` is required"
 
+
+    result_components = [perform_finite_difference_operation(field.values, dim, 1, field.dx.vector[dim], field.extrapolation, gradient_extrapolation, type, order, implicit, implicitness)
+                         for dim in grad_dims]
+
+    stack_dim = stack_dim._with_item_names((grad_dims,))
+
+    if type == CenteredGrid:
+        result = field.with_values(math.stack(result_components, stack_dim))
+        result = result.with_extrapolation(gradient_extrapolation)
+    else:
+        result = StaggeredGrid(
+            math.stack(result_components, channel(vector=grad_dims)),
+            bounds=field.bounds, extrapolation=gradient_extrapolation)
+
+    if type == CenteredGrid and gradient_extrapolation == math.extrapolation.NONE:
+        result = result.with_bounds(Box(field.bounds.lower - field.dx, field.bounds.upper + field.dx))
+    else:
+        result = result.with_bounds(field.bounds)
+
+    return result
+
+
+def perform_finite_difference_operation(field: Tensor, dim: str, differentiation_order: int, dx: float,
+                                        ext: Extrapolation,
+                                        output_ext: Extrapolation = None,
+                                        output_type: type = CenteredGrid,
+                                        order=2,
+                                        implicit: Solve = None,
+                                        implicitness: int = None):
+
+
+
+    if output_ext is None:
+        output_ext = ext
+
+    if implicitness is None:
+        implicitness = 0 if implicit is None else 2
+    else:
+        assert implicit is not None, "for implicit treatment a `Solve` is required"
+
+    assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
+
     def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False,
                      output_boundary_valid=False, input_boundary_valid=False):
 
@@ -231,7 +273,7 @@ def spatial_gradient(field: CenteredGrid,
                         coefficient_shifts.insert(0, coefficient_shifts[0]-0.5)
                         del n_shifts[-1]
                         n_shifts.insert(0, n_shifts[0]-1)
-                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
+                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, differentiation_order, rhs_n_shifts)
                 else:
                     coefficient_shifts = n_shifts.copy()
                     if input_boundary_valid:
@@ -239,7 +281,7 @@ def spatial_gradient(field: CenteredGrid,
                         coefficient_shifts.insert(0, coefficient_shifts[0]-0.5)
                         del n_shifts[-1]
                         n_shifts.insert(0, n_shifts[0]-1)
-                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, 1, rhs_n_shifts)
+                    n_values, n_values_rhs = get_coefficients(coefficient_shifts, differentiation_order, rhs_n_shifts)
 
                 if left_border_one_sided:
                     n_values = [-v for v in reversed(n_values)]
@@ -266,9 +308,9 @@ def spatial_gradient(field: CenteredGrid,
         else:
             if staggered:
                 del shifts[0]
-                values, rhs_values = get_coefficients([s - 0.5 for s in shifts], 1, rhs_shifts)
+                values, rhs_values = get_coefficients([s - 0.5 for s in shifts], differentiation_order, rhs_shifts)
             else:
-                values, rhs_values = get_coefficients(shifts, 1, rhs_shifts)
+                values, rhs_values = get_coefficients(shifts, differentiation_order, rhs_shifts)
 
             return values, shifts, rhs_values, rhs_shifts
 
@@ -278,7 +320,7 @@ def spatial_gradient(field: CenteredGrid,
     base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, implicit_order=implicitness,
                                                                               one_sided=False,
                                                                               left_border_one_sided=False,
-                                                                              staggered=type == StaggeredGrid,
+                                                                              staggered=output_type==StaggeredGrid,
                                                                               output_boundary_valid=False,
                                                                               input_boundary_valid=False)
 
@@ -286,7 +328,7 @@ def spatial_gradient(field: CenteredGrid,
         [
             [
                 [get_stencils(order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
-                              staggered=type == StaggeredGrid, output_boundary_valid=out_valid,
+                              staggered=output_type==StaggeredGrid, output_boundary_valid=out_valid,
                               input_boundary_valid=in_valid)
                  for in_valid in [False, True]]
                 for out_valid in [False, True]]
@@ -297,21 +339,17 @@ def spatial_gradient(field: CenteredGrid,
     left_one_sided_stencil_tensor = [[[tensor(l3[0], batch('position', 'koeff_shifts', 'values')) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
     right_one_sided_stencil_tensor = [[[tensor(l3[1], batch('position', 'koeff_shifts', 'values')) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
 
-
-
-    grad_dims = field.shape.only(dims).names
-
-
     # boundary masks
-    if type == CenteredGrid:
-        standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial) for dim in grad_dims]
+    if output_type == CenteredGrid:
+        standard_mask = CenteredGrid(0, resolution=field.shape)
     else:
-        standard_mask = [CenteredGrid(0, resolution=field.resolution.spatial + spatial(**{dim: sum(gradient_extrapolation.valid_outer_faces(dim))-1})) for dim in grad_dims]
+        standard_mask = CenteredGrid(0, resolution=field.shape + spatial(**{dim: sum(output_ext.valid_outer_faces(dim)) - 1}))
+
     output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
         extrapolation.ONE if valid_tuple else extrapolation.ZERO for valid_tuple in
-        gradient_extrapolation.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
+        output_ext.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
     # output_valid_ext = extrapolation.ZERO
-    output_valid_mask = [mask.with_extrapolation(output_valid_ext) for mask in standard_mask]
+    output_valid_mask = standard_mask.with_extrapolation(output_valid_ext)
 
     def ext_list_to_map_func(target_extrapolations):
         def f(ext: Extrapolation):
@@ -319,64 +357,33 @@ def spatial_gradient(field: CenteredGrid,
         return f
 
     input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ZERO_GRADIENT]),
-                                        field.extrapolation)
+                                        ext)
     # input_valid_ext = extrapolation.ZERO
+    input_valid_mask = standard_mask.with_extrapolation(input_valid_ext)
 
-    input_valid_mask = [mask.with_extrapolation(input_valid_ext) for mask in standard_mask]
     one_sided_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ConstantExtrapolation(math.nan),
                                                             extrapolation.ConstantExtrapolation(10000),
                                                             extrapolation.ConstantExtrapolation(100),
                                                             extrapolation.ZERO,
                                                             extrapolation.ZERO_GRADIENT,
-                                                            extrapolation.SYMMETRIC]), field.extrapolation)
+                                                            extrapolation.SYMMETRIC,
+                                                            ]), ext)
     # one_sided_ext = extrapolation.ONE
-    one_sided_mask = [mask.with_extrapolation(one_sided_ext) for mask in standard_mask]
+    one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
 
-    result_components = [apply_stencils(field.values, field.extrapolation, gradient_extrapolation, field.dx.vector[dim], base_values, base_shifts, type, dim,
-                                           masks=(ovm, ivm, osm), stencil_tensors=left_one_sided_stencil_tensor, differencing_order=1)
-                         for dim, ovm, ivm, osm in zip(grad_dims, output_valid_mask, input_valid_mask, one_sided_mask)]
-
-    stack_dim = stack_dim._with_item_names((grad_dims,))
-
-    if type == CenteredGrid:
-        result = field.with_values(math.stack(result_components, stack_dim))
-    else:
-        result = StaggeredGrid(
-            math.stack(result_components, channel(vector=grad_dims)),
-            bounds=field.bounds, extrapolation=gradient_extrapolation)
-    result = result.with_extrapolation(gradient_extrapolation)
+    result = apply_stencils(field, ext, output_ext, dx, base_values, base_shifts, type, dim,
+                            masks=(output_valid_mask, input_valid_mask, one_sided_mask), stencil_tensors=left_one_sided_stencil_tensor, differencing_order=differentiation_order)
 
     if implicit:
-        implicit.x0 = result.values.vector[0]
+        implicit.x0 = result
+        result = solve_linear(apply_stencils, result, solve=implicit, field_extrapolation=ext,
+                              gradient_extrapolation=output_ext,
+                              field_dx=dx, base_koeff=base_rhs_values, base_shifts=base_rhs_shifts,
+                              type=CenteredGrid, dim=dim,
+                              masks=(output_valid_mask, input_valid_mask, one_sided_mask), stencil_tensors=right_one_sided_stencil_tensor, differencing_order=0)
 
-
-        # frag 1 --
-        # apply_stencils(result.vector[0].values, result.vector[0].extrapolation, gradient_extrapolation,
-        #                field.dx.vector['x'], base_rhs_values, base_rhs_shifts, CenteredGrid, 'x',
-        #                masks=(output_valid_mask[0], input_valid_mask[0], one_sided_mask[0]),
-        #                stencil_tensors=right_one_sided_stencil_tensor, differencing_order=0)
-        # raise Exception('code ran through')
-        # --
-
-        result_components = []
-        for component, dim, ovm, ivm, osm in zip(result.vector, grad_dims, output_valid_mask, input_valid_mask, one_sided_mask):
-            implicit.x0 = result.values.vector[dim]
-            result_components.append(
-                solve_linear(apply_stencils, component.values, solve=implicit, field_extrapolation=component.extrapolation,
-                         gradient_extrapolation=gradient_extrapolation,
-                         field_dx=field.dx.vector[dim], base_koeff=base_rhs_values, base_shifts=base_rhs_shifts,
-                         type=CenteredGrid, dim=dim,
-                         masks=(ovm, ivm, osm), stencil_tensors=right_one_sided_stencil_tensor, differencing_order=0)
-            )
-
-        result = result.with_values(math.stack(result_components, stack_dim))
-
-    if type == CenteredGrid and gradient_extrapolation == math.extrapolation.NONE:
-        result = result.with_bounds(Box(field.bounds.lower - field.dx, field.bounds.upper + field.dx))
-    else:
-
-        result = result.with_bounds(field.bounds)
     return result
+
 
 # @jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks, stencil_tensors, differencing_order")
 def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None, differencing_order=1):
