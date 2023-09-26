@@ -155,7 +155,10 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
                 anal_sol = CenteredGrid(anal_sol_func, **DOMAIN)
             else:
                 anal_sol = output_gridtype(anal_sol_func, **DOMAIN)
-
+            plot(anal_sol.vector[0])
+            show()
+            plot(anal_sol.vector[1])
+            show()
             if pressure_input:
                 input = CenteredGrid(partial(tgv_pressure, vis=0, t=0), **DOMAIN)
             else:
@@ -205,11 +208,11 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
              xy_nums=operations_strs)
 
 
-xy_nums = [10, 35, 65, 105, 165, 225]
+# xy_nums = [10, 35, 65, 105, 165, 225]
 # xy_nums = [10, 12, 14]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [15, 22, 35, 65, 105]
-# xy_nums = [65]
+xy_nums = [65]
 # xy_nums = [2]
 # xy_nums = [5, 15, 35]
 
