@@ -90,8 +90,34 @@ def _get_obstacles_for(obstacles, space: Field):
         assert obstacle.geometry.vector.item_names == space.vector.item_names, f"Obstacles must live in the same physical space as the velocity field {space.vector.item_names} but got {type(obstacle.geometry).__name__} obstacle with order {obstacle.geometry.vector.item_names}"
     return obstacles
 
-
 def make_incompressible(velocity: Field,
+                        obstacles: Obstacle or Geometry or tuple or list = (),
+                        solve: Solve = Solve(),
+                        active: CenteredGrid = None,
+                        order: int = 2) -> Tuple[Field, Field]:
+    div = divergence(velocity, order=order)
+
+    pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
+
+    dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
+    solve = copy_with(solve, x0=dummy)
+
+    system_is_underdetermined = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    if system_is_underdetermined:
+        regulizer = 1 / div.dx.mean
+    else:
+        regulizer = 0
+
+    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+
+    grad_pressure = field.spatial_gradient(pressure, at=velocity.sampled_at, order=order)
+
+    velocity = velocity - grad_pressure
+
+    return velocity, pressure
+
+
+def make_incompressible2(velocity: Field,
                         obstacles: Obstacle or Geometry or tuple or list = (),
                         solve: Solve = Solve(),
                         active: CenteredGrid = None,
@@ -143,7 +169,14 @@ def make_incompressible(velocity: Field,
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution, convert=False))
     if (batch(math.merge_shapes(*obstacles)) & batch(velocity.dx)).without(batch(solve.x0.values)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=solve.x0.with_values(expand(solve.x0.values, batch(math.merge_shapes(*obstacles)) & batch(velocity.dx))))
-    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
+
+    system_is_underdetermined = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    if system_is_underdetermined:
+        regulizer = 1/div.dx.mean
+    else:
+        regulizer = 0
+
+    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order, regulizer=regulizer)
     # --- Subtract grad p ---
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, dims=velocity.vector.item_names, at=velocity.sampled_at, order=order) * hard_bcs
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
