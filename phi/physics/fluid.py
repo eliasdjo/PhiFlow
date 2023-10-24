@@ -90,6 +90,32 @@ def _get_obstacles_for(obstacles, space: Field):
         assert obstacle.geometry.vector.item_names == space.vector.item_names, f"Obstacles must live in the same physical space as the velocity field {space.vector.item_names} but got {type(obstacle.geometry).__name__} obstacle with order {obstacle.geometry.vector.item_names}"
     return obstacles
 
+def make_incompressible2(velocity: Field,
+                        obstacles: Obstacle or Geometry or tuple or list = (),
+                        solve: Solve = Solve(),
+                        active: CenteredGrid = None,
+                        order: int = 2) -> Tuple[Field, Field]:
+    div = divergence(velocity, order=order)
+
+    pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
+
+    dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
+    solve = copy_with(solve, x0=dummy)
+
+    system_is_underdetermined = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    if system_is_underdetermined:
+        rank_fix = math.sqrt(1/div.dx.mean)
+    else:
+        rank_fix = 0
+
+    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, fix_rank_deficiency=rank_fix)
+
+    grad_pressure = field.spatial_gradient(pressure, at=velocity.sampled_at, order=order)
+
+    velocity = velocity - grad_pressure
+
+    return velocity, pressure
+
 
 def make_incompressible(velocity: Field,
                         obstacles: Obstacle or Geometry or tuple or list = (),
@@ -136,14 +162,21 @@ def make_incompressible(velocity: Field,
     assert not channel(div), f"Divergence must not have any channel dimensions. This is likely caused by an improper velocity field v={input_velocity}"
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
-    if not input_velocity.extrapolation.is_flexible and all_active:
+    pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
+    rank_deficient = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    if rank_deficient and order > 2:
+        rank_fix = math.sqrt(1/div.dx.mean)
+    else:
+        rank_fix = 0
+    if not input_velocity.extrapolation.is_flexible and all_active and order == 2:
         solve = solve.with_preprocessing(_balance_divergence, active)
     if solve.x0 is None:
         pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution, convert=False))
     if (batch(math.merge_shapes(*obstacles)) & batch(velocity.dx)).without(batch(solve.x0.values)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=solve.x0.with_values(expand(solve.x0.values, batch(math.merge_shapes(*obstacles)) & batch(velocity.dx))))
-    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
+
+    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order, fix_rank_deficiency=rank_fix)
     # --- Subtract grad p ---
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, dims=velocity.vector.item_names, at=velocity.sampled_at, order=order) * hard_bcs
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
