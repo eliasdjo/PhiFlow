@@ -48,9 +48,30 @@ class TestRun:
     def fourth_ord_runge_kutta(self, velocity, pressure):
         v_1, p_1 = velocity, pressure
 
+        # plot(velocity.vector[0])
+        # show()
+        # plot(velocity.vector[1])
+        # show()
+        # plot(pressure)
+        # show()
+
         rhs_1 = self.adv_diff_press(v_1, p_1)
+
+        # plot(rhs_1.vector[0])
+        # show()
+        # plot(rhs_1.vector[1])
+        # show()
+
         v_2_old = velocity + (dt / 2) * rhs_1
+
+        # plot(v_2_old.vector[0])
+        # show()
+        # plot(v_2_old.vector[1])
+        # show()
+
         v_2, p_2 = self.pressure_treatment(v_2_old, p_1, dt / 2)
+
+
 
         rhs_2 = self.adv_diff_press(v_2, p_2)
         v_3_old = velocity + (dt / 2) * rhs_2
@@ -95,15 +116,15 @@ class TestRun:
 
 
     def adp_mid_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, dt, order=4) - v) / dt
-        adv_diff_press += (diffuse.finite_difference(v, visc, dt, order=4) - v) / dt
+        adv_diff_press = (advect.finite_difference(v, v, order=4) - v)
+        adv_diff_press += (diffuse.finite_difference(v, visc, order=4) - v)
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
         return adv_diff_press
 
     def pt_mid_ord(self, v, p, dt_=dt):
         v, delta_p = \
             fluid.make_incompressible(v,
-                                      solve=math.Solve('auto', 1e-12, 1e-12, gradient_solve=math.Solve('auto', 1e-12, 1e-12)),
+                                      solve=math.Solve('CG', 1e-12, 1e-12),
                                       order=4)
         p += delta_p / dt_
         return v, p
@@ -126,7 +147,11 @@ class TestRun:
     def run(self, jit_compile=True, t_num=0, freq=100):
         print(f"run {self.name}:")
 
-        os.mkdir(f"data/{self.name}")
+        try:
+            os.mkdir(f"data/{self.name}")
+        except:
+            pass
+
 
         if jit_compile:
             timestepper = math.jit_compile(self.timestep)
@@ -220,7 +245,7 @@ class TestRun:
 tges = 5
 
 xy_nums = [5, 15, 45, 95, 155, 255]
-xy_nums2 = [5, 15, 25, 35, 45, 55, 65]
+xy_nums2 = [15, 25, 35, 45, 55, 65]
 
 xy_nums_ = [5, 15, 25, 35, 45, 55, 65, 85, 105, 125, 155, 185, 215, 255]
 xy_nums2_ = [3, 5, 7, 10, 12, 15, 17, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65]
@@ -253,18 +278,18 @@ small_test = [5]
 # low_order_stagg.calc_errors(relative_error=True)
 #
 #
-# mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
-# mid_order.run(jit_compile=True)
-# mid_order.calc_errors(relative_error=True)
+mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fst_ord_time_step", "adp_mid_ord", "pt_mid_ord", "mid_order")
+mid_order.run(jit_compile=False)
+mid_order.calc_errors(relative_error=True)
 #
 # mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
 # mid_order_stagg.run(jit_compile=True)
 # mid_order_stagg.calc_errors(relative_error=True)
 #
 #
-high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
-high_order.run(jit_compile=False)
-high_order.calc_errors(relative_error=True)
+# high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
+# high_order.run(jit_compile=False)
+# high_order.calc_errors(relative_error=True)
 
 # high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
 # high_order_stagg.run(jit_compile=True)

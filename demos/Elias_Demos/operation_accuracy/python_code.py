@@ -399,16 +399,16 @@ xy_nums = [10, 35, 65, 105, 165, 225]
 #         tgv_velocity_advect, ["std", "kamp", "laiz"])
 #
 
-for i in range(0, 4):
+for i in range(0, 1):
 # # for i in [1]:
     TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
             [
-                partial(field.divergence, order=2),
+                # partial(field.divergence, order=2),
                 partial(field.divergence, order=4),
-                partial(field.divergence, order=6),
-                partial(field.divergence, order=8),
-                partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-                partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                # partial(field.divergence, order=6),
+                # partial(field.divergence, order=8),
+                # partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                # partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
             ],
             div_test_anal_sol,
             ["ord_2", "ord_4", "ord_6", "ord_8",

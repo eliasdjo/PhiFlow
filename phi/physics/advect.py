@@ -109,7 +109,7 @@ def finite_difference(grid: Grid,
         amount = sum(amounts)
     else:
         assert isinstance(grid, CenteredGrid), f"grid must be CenteredGrid or StaggeredGrid but got {type(grid)}"
-        grad = spatial_gradient(grid, stack_dim=channel('gradient'), order=order, implicit=implicit)
+        grad = stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit) for component in grid.vector], dim=channel('vector'))
         velocity = stack(unstack(velocity, dim='vector'), dim=channel('gradient'))
         amounts = velocity * grad
         amount = sum(amounts.gradient)
