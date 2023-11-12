@@ -283,7 +283,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     # boundary masks
     if output_type == CenteredGrid:
-        standard_mask = CenteredGrid(0, resolution=field.shape)
+        standard_mask = CenteredGrid(0, resolution=field.shape)     # ToDo ed is this okay with batch dimensions?
     else:
         standard_mask = CenteredGrid(0, resolution=field.shape + spatial(**{dim: sum(output_ext.valid_outer_faces(dim)) - 1}))
 
@@ -546,7 +546,7 @@ def divergence(field: Grid, order=2, implicit: Solve = None, implicitness=None) 
         Divergence field as `CenteredGrid`
     """
 
-    components = [spatial_gradient(f.values, grad_dims=dim, type=CenteredGrid, order=order, implicit=implicit, implicitness=implicitness)
+    components = [spatial_gradient(f, grad_dims=dim, type=CenteredGrid, order=order, implicit=implicit, implicitness=implicitness)
                          for f, dim in zip(field.vector, field.shape.only(spatial).names)]
 
     return sum(components)

@@ -94,11 +94,30 @@ def tgv_velocity_deriv_to_center_snd_comp(x):
     sin, cos = math.sin(x), math.cos(x)
     return sin.vector['x'] * sin.vector['y']
 
+# def div_test_input(x):
+#     sin, cos = math.sin(x), math.cos(x)
+#     return math.stack([x.vector['x']**2*x.vector['y']*sin.vector['x'],
+#                        cos.vector['y']], dim=channel('vector'))
+#
+# def div_test_anal_sol(x):
+#     sin, cos = math.sin(x), math.cos(x)
+#     return x.vector['x']**2*x.vector['y']*cos.vector['x'] + 2*x.vector['x']*x.vector['y']*sin.vector['x'] - sin.vector['y']
+
+def div_test_input(x):
+    sin, cos = math.sin(x), math.cos(x)
+    return math.stack([sin.vector['x'], cos.vector['y']], dim=channel('vector'))
+
+def div_test_anal_sol(x):
+    sin, cos = math.sin(x), math.cos(x)
+    return cos.vector['x'] - sin.vector['y']
+
+
 
 def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
             operations_strs=None,
             scalar_input=-1, input_gridtype=None, scalar_output=False, output_gridtype=None,
-            jax_native=False, run_jitted=False, operation_args=[], pressure_input=False, boundaries=0):
+            jax_native=False, run_jitted=False, operation_args=[], pressure_input=False, boundaries=0,
+            div_test=False):
 
     if input_gridtype is None:
         input_gridtype = gridtype
@@ -149,18 +168,24 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
                 raise NotImplementedError
 
             DOMAIN = dict(x=xy_num, y=xy_num, extrapolation=extrapola,
-                          bounds=Box['x,y', 0:2 * math.pi, 0:2 * math.pi])
+                          bounds=Box['x,y', 0:2 * math.pi, 0:2 * math.pi] )
 
             if scalar_output:
                 anal_sol = CenteredGrid(anal_sol_func, **DOMAIN)
             else:
                 anal_sol = output_gridtype(anal_sol_func, **DOMAIN)
-            plot(anal_sol.vector[0])
-            show()
-            plot(anal_sol.vector[1])
-            show()
+            # plot(anal_sol)
+            # show()
             if pressure_input:
                 input = CenteredGrid(partial(tgv_pressure, vis=0, t=0), **DOMAIN)
+            elif div_test:
+                input = CenteredGrid(div_test_input, **DOMAIN)
+                # plot(input.vector[0])
+                # show()
+                # plot(input.vector[1])
+                # show()
+                # plot(input)
+                # show()
             else:
                 if scalar_input >= 0:
                     input = input_gridtype(partial(tgv_velocity, vis=0, t=0), **DOMAIN).vector[scalar_input]
@@ -208,11 +233,11 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
              xy_nums=operations_strs)
 
 
-# xy_nums = [10, 35, 65, 105, 165, 225]
+xy_nums = [10, 35, 65, 105, 165, 225]
 # xy_nums = [10, 12, 14]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [15, 22, 35, 65, 105]
-xy_nums = [65]
+# xy_nums = [65]
 # xy_nums = [2]
 # xy_nums = [5, 15, 35]
 
@@ -262,24 +287,43 @@ xy_nums = [65]
 #                  ],
 #                 scalar_input=0, input_gridtype=CenteredGrid, boundaries=i)
 
-for i in range(0, 6):
-# for i in [1]:
-    TestRun(f"laplacian_bnd_{i}", xy_nums, CenteredGrid,
-            [
-                partial(field.laplace, order=2),
-                partial(field.laplace, order=4),
-                partial(field.laplace, order=6),
-                partial(field.laplace, order=8),
-                partial(field.laplace, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-                partial(field.laplace, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-                ],
-            tgv_velocity_laplacian,
-            ["ord_2", "ord_4", "ord_6", "ord_8",
-             "ord_6_impl_2",
-             # "prd_6_impl_4",
-             "ord_8_impl_2",
-             # "ord_8_impl_4"
-             ], boundaries=i)
+# for i in range(0, 6):
+# # for i in [1]:
+#     TestRun(f"laplacian_bnd_{i}", xy_nums, CenteredGrid,
+#             [
+#                 partial(field.laplace, order=2),
+#                 partial(field.laplace, order=4),
+#                 partial(field.laplace, order=6),
+#                 partial(field.laplace, order=8),
+#                 partial(field.laplace, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#                 partial(field.laplace, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#                 ],
+#             tgv_velocity_laplacian,
+#             ["ord_2", "ord_4", "ord_6", "ord_8",
+#              "ord_6_impl_2",
+#              # "prd_6_impl_4",
+#              "ord_8_impl_2",
+#              # "ord_8_impl_4"
+#              ], boundaries=i)
+
+# for i in range(4, 6):
+# # for i in [1]:
+#     TestRun(f"laplacian_bnd_fst_comp_{i}", xy_nums, CenteredGrid,
+#             [
+#                 partial(field.laplace, order=2),
+#                 partial(field.laplace, order=4),
+#                 partial(field.laplace, order=6),
+#                 partial(field.laplace, order=8),
+#                 partial(field.laplace, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#                 partial(field.laplace, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#                 ],
+#             tgv_velocity_laplacian_fst_comp,
+#             ["ord_2", "ord_4", "ord_6", "ord_8",
+#              "ord_6_impl_2",
+#              # "prd_6_impl_4",
+#              "ord_8_impl_2",
+#              # "ord_8_impl_4"
+#              ], boundaries=i, scalar_input=0)
 
 
 # TestRun("gradient_snd_comp", xy_nums, CenteredGrid,
@@ -355,13 +399,24 @@ for i in range(0, 6):
 #         tgv_velocity_advect, ["std", "kamp", "laiz"])
 #
 
-# TestRun("divergence", xy_nums, CenteredGrid,
-#         [
-#         partial(field.divergence, order=1),
-#             # partial(field.divergence, order=4), partial(field.divergence, order=40),
-#          # partial(field.divergence, order=6, implicit=Solve('GMres', 1e-12, 1e-12))
-#         ],
-#         tgv_velocity_div, ["divergence", "divergence_os", "divergence_kamp", "divergence_kamp_os", "divergence_laiz", "divergence_laiz_os"])
+for i in range(0, 4):
+# # for i in [1]:
+    TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
+            [
+                partial(field.divergence, order=2),
+                partial(field.divergence, order=4),
+                partial(field.divergence, order=6),
+                partial(field.divergence, order=8),
+                partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+            ],
+            div_test_anal_sol,
+            ["ord_2", "ord_4", "ord_6", "ord_8",
+             "ord_6_impl_2",
+             # "prd_6_impl_4",
+             "ord_8_impl_2",
+             # "ord_8_impl_4"
+             ], boundaries=i, div_test=True)
 
 
 
