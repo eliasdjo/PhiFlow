@@ -147,7 +147,11 @@ def spatial_gradient(field: CenteredGrid,
         assert implicit is not None, "for implicit treatment a `Solve` is required"
 
     grad_dims = field.shape.only(grad_dims).names
-    stack_dim = stack_dim._with_item_names((grad_dims,))
+
+    if stack_dim is None:
+        assert len(grad_dims) == 1, "`stack_dim` `None` is only possible with single `grad_dim`"
+    else:
+        stack_dim = stack_dim._with_item_names((grad_dims,))
 
     result_components = [perform_finite_difference_operation(field.values, dim, 1, field.dx.vector[dim], field.extrapolation,
                                                              gradient_extrapolation, type, order, implicit, implicitness)
@@ -309,7 +313,6 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
                                                             extrapolation.ZERO,
                                                             extrapolation.ZERO_GRADIENT,
                                                             extrapolation.SYMMETRIC,
-                                                            extrapolation.PERIODIC,
                                                             ]), ext)
     # one_sided_ext = extrapolation.ONE
     one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
@@ -546,7 +549,7 @@ def divergence(field: Grid, order=2, implicit: Solve = None, implicitness=None) 
         Divergence field as `CenteredGrid`
     """
 
-    components = [spatial_gradient(f, grad_dims=dim, type=CenteredGrid, order=order, implicit=implicit, implicitness=implicitness)
+    components = [spatial_gradient(f, grad_dims=dim, type=CenteredGrid, order=order, implicit=implicit, implicitness=implicitness, stack_dim=None)
                          for f, dim in zip(field.vector, field.shape.only(spatial).names)]
 
     return sum(components)

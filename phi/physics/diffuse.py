@@ -76,7 +76,7 @@ def implicit(field: FieldType,
 def finite_difference(grid: Grid,
                       diffusivity: Union[float, math.Tensor, Field],
                       order: int,
-                      implicit: math.Solve) -> FieldType:
+                      implicit: math.Solve=None) -> FieldType:
 
     """
     Diffusion by using a finite difference scheme.
