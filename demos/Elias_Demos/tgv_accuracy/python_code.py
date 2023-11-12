@@ -81,8 +81,8 @@ class TestRun:
 
 
     def adp_high_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, dt, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v) / dt
-        adv_diff_press += (diffuse.finite_difference(v, visc, dt, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v) / dt
+        adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v)
+        adv_diff_press += (diffuse.finite_difference(v, visc, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v)
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
         return adv_diff_press
 
@@ -262,13 +262,13 @@ small_test = [5]
 # mid_order_stagg.calc_errors(relative_error=True)
 #
 #
-# high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
-# high_order.run(jit_compile=False)
-# high_order.calc_errors(relative_error=True)
+high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
+high_order.run(jit_compile=False)
+high_order.calc_errors(relative_error=True)
 
-high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
-high_order_stagg.run(jit_compile=True)
-high_order_stagg.calc_errors(relative_error=True)
+# high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
+# high_order_stagg.run(jit_compile=True)
+# high_order_stagg.calc_errors(relative_error=True)
 
 
 print("done")
