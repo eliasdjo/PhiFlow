@@ -193,7 +193,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
 
-    def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False,
+    def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False, # ToDo ed raus in externe fcnktion mit param gridtype order impl dann aufruf mit with math.NUMPY
                      output_boundary_valid=False, input_boundary_valid=False):
 
         extend = int(math.ceil((order - implicit_order) / 2))
@@ -262,23 +262,23 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
         return [v_ns_b0, rhs_v_ns_b0]
 
+    with math.NUMPY:
+        base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, implicit_order=implicitness,
+                                                                                  one_sided=False,
+                                                                                  left_border_one_sided=False,
+                                                                                  staggered=output_type==StaggeredGrid,
+                                                                                  output_boundary_valid=False,
+                                                                                  input_boundary_valid=False)
 
-    base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, implicit_order=implicitness,
-                                                                              one_sided=False,
-                                                                              left_border_one_sided=False,
-                                                                              staggered=output_type==StaggeredGrid,
-                                                                              output_boundary_valid=False,
-                                                                              input_boundary_valid=False)
-
-    one_sided_stencils = \
-        [
+        one_sided_stencils = \
             [
-                [get_stencils(order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
-                              staggered=output_type==StaggeredGrid, output_boundary_valid=out_valid,
-                              input_boundary_valid=in_valid)
-                 for in_valid in [False, True]]
-                for out_valid in [False, True]]
-            for left_side in [False, True]]
+                [
+                    [get_stencils(order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
+                                  staggered=output_type==StaggeredGrid, output_boundary_valid=out_valid,
+                                  input_boundary_valid=in_valid)
+                     for in_valid in [False, True]]
+                    for out_valid in [False, True]]
+                for left_side in [False, True]]
 
     # one_sided_stencil_tensor = tensor(one_sided_stencils,
     #                             batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
@@ -332,7 +332,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
     return result
 
 
-# @jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks, stencil_tensors, differencing_order")
+@jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks, stencil_tensors, differencing_order")
 def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None, differencing_order=1):
     from itertools import product
     spatial_dims = field.shape.spatial.names
