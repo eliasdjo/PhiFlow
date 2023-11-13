@@ -1,4 +1,5 @@
 import math
+import os
 from functools import partial
 
 from phi.jax.flow import *
@@ -99,6 +100,10 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
             operations_strs=None,
             scalar_input=-1, input_gridtype=None, scalar_output=False, output_gridtype=None,
             jax_native=False, run_jitted=False, operation_args=[], pressure_input=False, boundaries=0):
+    try:
+        os.mkdir(f"data")
+    except:
+        pass
 
     if input_gridtype is None:
         input_gridtype = gridtype
@@ -212,14 +217,11 @@ def TestRun(name, xy_nums, gridtype, operations, anal_sol_func,
 #         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
 
 
-# works only if _field_math.py apply_stencils (line 337) is not jit linear compiled
+# works only if _field_math.py apply_stencils (line 335) is not jit linear compiled
 TestRun(f"test", [35], StaggeredGrid,
         [partial(field.spatial_gradient, order=2, type=StaggeredGrid)],
         tgv_velocity_gradient_fst_comp, ["ord_2"],
         scalar_input=0, input_gridtype=CenteredGrid, boundaries=1)
-
-# see boundary issue "python_code.py" line 142
-
 
 
 
