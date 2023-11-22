@@ -2,8 +2,6 @@ from phi.math import zeros, ones, concat, channel, tensor, dual
 from phi import math
 import numpy as np
 
-from phiml.math import expand
-
 
 def lhs_matrix(offsets, derivative, lhs_offsets):
 
@@ -31,7 +29,8 @@ def get_coefficients(offsets, derivative, lhs_offsets=[]):
         lhs_offsets = lhs_offsets.copy()
         zero_index = lhs_offsets.index(0)
         lhs_offsets.remove(0)
-    one = concat([expand(0, channel(x=derivative)), expand(1, channel(x=1)), expand(0, channel(x=len(offsets + lhs_offsets) - derivative - 1))], 'x') # ToDo ed
+    one = concat([zeros(channel(x=derivative)), ones(channel(x=1)), zeros(channel(x=len(offsets + lhs_offsets) - derivative - 1))], 'x')
+    # ToDo ed switch zero(...) -> phiml.math.expand(0, ...)
     mat = lhs_matrix(offsets, derivative, lhs_offsets)
     np_mat = mat.numpy('x, ~x')
     np_b = one.numpy('x')
