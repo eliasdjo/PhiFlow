@@ -269,8 +269,8 @@ small_test = [5]
 # pt_phi_flow_stagg.calc_errors(relative_error=True)
 #
 #
-# low_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order")
-# low_order.run(jit_compile=True)
+# low_order = TestRun([10], tges, CenteredGrid, "fst_ord_time_step", "adp_low_ord", "pt_low_ord", "low_order")
+# low_order.run(jit_compile=True, freq=1)
 # low_order.calc_errors(relative_error=True)
 #
 # low_order_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order_stagg")
@@ -278,8 +278,8 @@ small_test = [5]
 # low_order_stagg.calc_errors(relative_error=True)
 #
 #
-mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fst_ord_time_step", "adp_mid_ord", "pt_mid_ord", "mid_order")
-mid_order.run(jit_compile=True, freq=1)
+mid_order = TestRun([10], tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
+mid_order.run(jit_compile=True)
 mid_order.calc_errors(relative_error=True)
 #
 # mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
@@ -287,7 +287,7 @@ mid_order.calc_errors(relative_error=True)
 # mid_order_stagg.calc_errors(relative_error=True)
 #
 #
-# high_order = TestRun(xy_nums2, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
+# high_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
 # high_order.run(jit_compile=False)
 # high_order.calc_errors(relative_error=True)
 
