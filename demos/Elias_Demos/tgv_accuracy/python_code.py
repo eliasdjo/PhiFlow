@@ -279,7 +279,7 @@ small_test = [5]
 #
 #
 mid_order = TestRun(xy_nums2, tges, CenteredGrid, "fst_ord_time_step", "adp_mid_ord", "pt_mid_ord", "mid_order")
-mid_order.run(jit_compile=True)
+mid_order.run(jit_compile=True, freq=1)
 mid_order.calc_errors(relative_error=True)
 #
 # mid_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order_stagg")
