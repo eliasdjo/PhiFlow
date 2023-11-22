@@ -331,42 +331,38 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     return result
 
-# @jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, values_, needed_shifts_, type, dim, differencing_order")
-def apply_stencil(field, field_extrapolation, gradient_extrapolation, field_dx,
-                  values_, needed_shifts_,
-                  type, dim, differencing_order):
-    spatial_dims = field.shape.spatial.names
-    needed_shifts_ = [int(i) for i in needed_shifts_]
-    base_widths = (max(-min(needed_shifts_), 0), max(max(needed_shifts_), 0))
-
-    std_widths = (0, 0)
-    if type == CenteredGrid:
-        if gradient_extrapolation == math.extrapolation.NONE:
-            base_widths = (base_widths[0] + 1, base_widths[1] + 1)
-            std_widths = (1, 1)
-    elif type == StaggeredGrid:
-        base_widths = (base_widths[0], base_widths[1] - 1)
-        border_valid = gradient_extrapolation.valid_outer_faces(dim)
-        base_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
-    else:
-        raise ValueError(type)
-
-    padded_component = math.pad(field,
-                                {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims},
-                                field_extrapolation)
-
-    shifted_component = math.shift(padded_component, tuple(needed_shifts_), stack_dim=None, padding=None, dims=dim)
-    result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field_dx**differencing_order)
-
-    return result_component
 
 @jit_compile_linear(auxiliary_args="field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks, stencil_tensors, differencing_order")
 def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx, base_koeff, base_shifts, type, dim, masks=None, stencil_tensors=None, differencing_order=1):
     from itertools import product
+    spatial_dims = field.shape.spatial.names
 
-    result_component = apply_stencil(field, field_extrapolation, gradient_extrapolation, field_dx,
-                                     base_koeff, base_shifts,
-                                     type, dim, differencing_order)
+    def apply_stencil(values_, needed_shifts_):
+        needed_shifts_ = [int(i) for i in needed_shifts_]
+        base_widths = (max(-min(needed_shifts_), 0), max(max(needed_shifts_), 0))
+
+        std_widths = (0, 0)
+        if type == CenteredGrid:
+            if gradient_extrapolation == math.extrapolation.NONE:
+                base_widths = (base_widths[0] + 1, base_widths[1] + 1)
+                std_widths = (1, 1)
+        elif type == StaggeredGrid:
+            base_widths = (base_widths[0], base_widths[1] - 1)
+            border_valid = gradient_extrapolation.valid_outer_faces(dim)
+            base_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
+        else:
+            raise ValueError(type)
+
+        padded_component = math.pad(field,
+                                    {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims},
+                                    field_extrapolation)
+
+        shifted_component = math.shift(padded_component, tuple(needed_shifts_), stack_dim=None, padding=None, dims=dim)
+        result_component = (sum([value * shift for value, shift in zip(values_, shifted_component)]) / field_dx**differencing_order)
+
+        return result_component
+
+    result_component = apply_stencil(base_koeff, base_shifts)
     if masks is not None and stencil_tensors is not None:
         output_valid_mask, input_valid_mask, one_sided_mask = masks
         one_mask = one_sided_mask.with_values(1).with_extrapolation(extrapolation.ONE)
@@ -381,9 +377,7 @@ def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx,
                 if len(values_b0) != 0 and len(values_b0) != 0:
                     # rc = apply_stencil(values_b0, needed_shifts_b0)
 
-                    one_sided_components = apply_stencil(field, field_extrapolation, gradient_extrapolation, field_dx,
-                                                         values_b0, needed_shifts_b0,
-                                                         type, dim, differencing_order)
+                    one_sided_components = apply_stencil(values_b0, needed_shifts_b0)
                     mask_ = shift(mask, ((i+1) if left_side else -(i+1),), dims=dim, stack_dim=None)[0].values - isolation_mask
                     isolation_mask = isolation_mask + mask_
                     # rc = result_component * (1 - mask_) + one_sided_components * mask_
