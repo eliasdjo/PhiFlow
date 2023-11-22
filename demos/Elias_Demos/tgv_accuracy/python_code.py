@@ -41,7 +41,7 @@ class TestRun:
         self.pressure_treatment = getattr(self, pressure_treatment)
 
     def fst_ord_time_step(self, velocity, pressure):
-        v_old = self.adv_diff_press(velocity, pressure)
+        v_old = velocity + dt * self.adv_diff_press(velocity, pressure)
         v_new, p_new = self.pressure_treatment(v_old, pressure)
         return v_new, p_new
 
