@@ -282,8 +282,8 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     # one_sided_stencil_tensor = tensor(one_sided_stencils,
     #                             batch('left_side', 'out_valid', 'in_valid', 'left_right', 'position', 'koeff_shifts', 'values'))
-    left_one_sided_stencil_tensor = [[[tensor(l3[0], batch('position', 'koeff_shifts', 'values')) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
-    right_one_sided_stencil_tensor = [[[tensor(l3[1], batch('position', 'koeff_shifts', 'values')) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
+    left_one_sided_stencil_tensor = [[[tensor(l3[0], batch('position', 'koeff_shifts', 'values'), convert=False) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
+    right_one_sided_stencil_tensor = [[[tensor(l3[1], batch('position', 'koeff_shifts', 'values'), convert=False) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
 
     # boundary masks
     if output_type == CenteredGrid:
