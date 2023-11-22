@@ -173,28 +173,8 @@ def spatial_gradient(field: CenteredGrid,
     return result
 
 
-def perform_finite_difference_operation(field: Tensor, dim: str, differentiation_order: int, dx: float,
-                                        ext: Extrapolation,
-                                        output_ext: Extrapolation = None,
-                                        output_type: type = CenteredGrid,
-                                        order=2,
-                                        implicit: Solve = None,
-                                        implicitness: int = None):
-
-
-
-    if output_ext is None:
-        output_ext = ext
-
-    if implicitness is None:
-        implicitness = 0 if implicit is None else 2
-    elif implicitness != 0:
-        assert implicit is not None, "for implicit treatment a `Solve` is required"
-
-    assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
-
-    def get_stencils(order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False, # ToDo ed raus in externe fcnktion mit param gridtype order impl dann aufruf mit with math.NUMPY
-                     output_boundary_valid=False, input_boundary_valid=False):
+def get_stencils(order, differentiation_order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False, # ToDo ed raus in externe funktion mit param gridtype order impl dann aufruf mit with math.NUMPY
+                 output_boundary_valid=False, input_boundary_valid=False):
 
         extend = int(math.ceil((order - implicit_order) / 2))
         rhs_extend = int(math.ceil(implicit_order / 2))
@@ -262,8 +242,28 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
         return [v_ns_b0, rhs_v_ns_b0]
 
+
+def perform_finite_difference_operation(field: Tensor, dim: str, differentiation_order: int, dx: float,
+                                        ext: Extrapolation,
+                                        output_ext: Extrapolation = None,
+                                        output_type: type = CenteredGrid,
+                                        order=2,
+                                        implicit: Solve = None,
+                                        implicitness: int = None):
+
+
+    if output_ext is None:
+        output_ext = ext
+
+    if implicitness is None:
+        implicitness = 0 if implicit is None else 2
+    elif implicitness != 0:
+        assert implicit is not None, "for implicit treatment a `Solve` is required"
+
+    assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
+
     with math.NUMPY:
-        base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, implicit_order=implicitness,
+        base_values, base_shifts, base_rhs_values, base_rhs_shifts = get_stencils(order, differentiation_order, implicit_order=implicitness,
                                                                                   one_sided=False,
                                                                                   left_border_one_sided=False,
                                                                                   staggered=output_type==StaggeredGrid,
@@ -273,7 +273,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
         one_sided_stencils = \
             [
                 [
-                    [get_stencils(order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
+                    [get_stencils(order, differentiation_order, implicit_order=implicitness, one_sided=True, left_border_one_sided=left_side,
                                   staggered=output_type==StaggeredGrid, output_boundary_valid=out_valid,
                                   input_boundary_valid=in_valid)
                      for in_valid in [False, True]]
