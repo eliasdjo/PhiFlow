@@ -2,18 +2,18 @@ import numpy as np
 from phi.flow import *
 import matplotlib.pyplot as plt
 
-prefix = "operation_accuracy/data/"
-names = ["laplacian", "laplacian_staggered", "diffusion", "diffusion_staggered",
-         "gradient_fst_comp", "gradient_staggered_fst_comp", "gradient_snd_comp", "gradient_staggered_snd_comp",
-         "advection", "advection_staggered"]
+# prefix = "operation_accuracy/data/"
+# names = ["laplacian", "laplacian_staggered", "diffusion", "diffusion_staggered",
+#          "gradient_fst_comp", "gradient_staggered_fst_comp", "gradient_snd_comp", "gradient_staggered_snd_comp",
+#          "advection", "advection_staggered"]
 
 # prefix = "tgv_accuracy/data/"
 # names = ["phi_flow_rel_err", "std_snd_ord_rel_err",
 #          "high_ord_pt_jax_single_small_stencil_rel_err"]
 # names = ["high_ord_pt_jax_single_small_stencil_rel_err"]
 
-# prefix = "tgv_accuracy/errors/"
-# names = ["high_order", "high_order_stagg"]
+prefix = "tgv_accuracy/errors/"
+names = ["low_order", "mid_order", "high_order"]
 
 # prefix = "homogenic_isotropic_turbulence/data/"
 # names = ["compare_p_solve_small_and_big_stencil",
