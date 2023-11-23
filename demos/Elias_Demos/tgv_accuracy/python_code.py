@@ -102,8 +102,8 @@ class TestRun:
 
 
     def adp_high_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v)
-        adv_diff_press += (diffuse.finite_difference(v, visc, order=6, implicit=Solve('CG', 1e-12, 1e-12)) - v)
+        adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('CG', 1e-12, 1e-12)))
+        adv_diff_press += (diffuse.finite_difference(v, visc, order=6, implicit=Solve('CG', 1e-12, 1e-12)))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
         return adv_diff_press
 
@@ -116,8 +116,8 @@ class TestRun:
 
 
     def adp_mid_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, order=4) - v)
-        adv_diff_press += (diffuse.finite_difference(v, visc, order=4) - v)
+        adv_diff_press = (advect.finite_difference(v, v, order=4))
+        adv_diff_press += (diffuse.finite_difference(v, visc, order=4))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
         return adv_diff_press
 
@@ -131,8 +131,8 @@ class TestRun:
 
 
     def adp_low_ord(self, v, p):
-        adv_diff_press = advect.finite_difference(v, v, dt) - v
-        adv_diff_press += (diffuse.finite_difference(v, visc, dt) - v) / dt
+        adv_diff_press = advect.finite_difference(v, v, dt)
+        adv_diff_press += (diffuse.finite_difference(v, visc, dt))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype)
         return adv_diff_press
 
@@ -269,16 +269,16 @@ small_test = [5]
 # pt_phi_flow_stagg.calc_errors(relative_error=True)
 #
 #
-# low_order = TestRun([10], tges, CenteredGrid, "fst_ord_time_step", "adp_low_ord", "pt_low_ord", "low_order")
-# low_order.run(jit_compile=True, freq=1)
-# low_order.calc_errors(relative_error=True)
+low_order = TestRun(xy_nums, tges, CenteredGrid, "fst_ord_time_step", "adp_low_ord", "pt_low_ord", "low_order")
+low_order.run(jit_compile=True)
+low_order.calc_errors(relative_error=True)
 #
 # low_order_stagg = TestRun(xy_nums, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_low_ord", "pt_low_ord", "low_order_stagg")
 # low_order_stagg.run(jit_compile=True)
 # low_order_stagg.calc_errors(relative_error=True)
 #
 #
-mid_order = TestRun([10], tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
+mid_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_mid_ord", "pt_mid_ord", "mid_order")
 mid_order.run(jit_compile=True)
 mid_order.calc_errors(relative_error=True)
 #
@@ -287,9 +287,9 @@ mid_order.calc_errors(relative_error=True)
 # mid_order_stagg.calc_errors(relative_error=True)
 #
 #
-# high_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
-# high_order.run(jit_compile=False)
-# high_order.calc_errors(relative_error=True)
+high_order = TestRun(xy_nums, tges, CenteredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order")
+high_order.run(jit_compile=True)
+high_order.calc_errors(relative_error=True)
 
 # high_order_stagg = TestRun(xy_nums2, tges, StaggeredGrid, "fourth_ord_runge_kutta", "adp_high_ord", "pt_high_ord", "high_order_stagg")
 # high_order_stagg.run(jit_compile=True)
