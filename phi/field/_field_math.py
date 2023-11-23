@@ -302,7 +302,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
             return extrapolation.ONE if ext in target_extrapolations else extrapolation.ZERO
         return f
 
-    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ZERO_GRADIENT]),
+    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO]),
                                         ext)
     # input_valid_ext = extrapolation.ZERO
     input_valid_mask = standard_mask.with_extrapolation(input_valid_ext)

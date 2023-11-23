@@ -44,7 +44,7 @@ class TestRun:
         elif order == 'mid':
             self.adv_diff_press = self.adp_mid_ord
             self.pressure_treatment = self.pt_mid_ord
-        if order  == 'high':
+        if order == 'high':
             self.adv_diff_press = self.adp_high_ord
             self.pressure_treatment = self.pt_high_ord
 
@@ -106,82 +106,90 @@ class TestRun:
         return v_p1, p_p1
 
 
+    # def adp_high_ord(self, v, p):
+    #
+    #     adv_diff_press = (advect.finite_difference(v, v, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
+    #
+    #     # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'], title=f'adv')
+    #     # vis.show()
+    #
+    #     diff = (diffuse.finite_difference(v, self.vis, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
+    #
+    #     # vis.plot(diff.vector['x'], diff.vector['y'], title=f'diff')
+    #     # vis.show()
+    #
+    #     adv_diff_press += diff
+    #     press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
+    #         x=extrapolation.PERIODIC,
+    #         y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
+    #     # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
+    #     #                                gradient_extrapolation=extrapolation.PERIODIC)
+    #
+    #     # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
+    #     # vis.show()
+    #
+    #     # adv_diff_press -= press
+    #     press = -press.with_values(stack([math.ones(press.vector['x'].values.shape), math.zeros(press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
+    #
+    #     # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
+    #     # vis.show()
+    #     adv_diff_press -= press
+    #     return adv_diff_press
+
     def adp_high_ord(self, v, p):
-
-        adv_diff_press = (advect.finite_difference(v, v, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
-
-        # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'], title=f'adv')
-        # vis.show()
-
-        diff = (diffuse.finite_difference(v, self.vis, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
-
-        # vis.plot(diff.vector['x'], diff.vector['y'], title=f'diff')
-        # vis.show()
-
-        adv_diff_press += diff
-        press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
-            x=extrapolation.PERIODIC,
-            y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
-        # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
-        #                                gradient_extrapolation=extrapolation.PERIODIC)
-
-        # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
-        # vis.show()
-
-        # adv_diff_press -= press
-        press = -press.with_values(stack([math.ones(press.vector['x'].values.shape), math.zeros(press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
-
-        # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
-        # vis.show()
-        adv_diff_press -= press
-        return adv_diff_press
-
-    def pt_high_ord(self, v, p, dt_):
-        v, delta_p = fluid.make_incompressible(v, scheme=Scheme(4), solve=math.Solve('CG', 1e-5, 1e-5))
-        p += delta_p / dt_
-        return v, p
-
-    def adp_mid_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, self.dt, scheme=Scheme(4)) - v) / self.dt
-        adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt, scheme=Scheme(4)) - v) / self.dt
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
-        return adv_diff_press
-
-    def pt_mid_ord(self, v, p, dt_):
-        v, delta_p = \
-            fluid.make_incompressible(v,
-                                      solve=math.Solve('auto', 1e-12, 1e-12, gradient_solve=math.Solve('auto', 1e-12, 1e-12)),
-                                      scheme=Scheme(4))
-        p += delta_p / dt_
-        return v, p
-
-    def adp_low_ord(self, v, p):
-        adv_diff_press = advect.finite_difference(v, v, self.dt) - v
-        adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt) - v) / self.dt
+        adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
+        adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
         adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)],
                                                            channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
-    def pt_low_ord(self, v, p, dt_):
+    def pt_high_ord(self, v, p, dt_=None):
+        if dt_ is None:
+            dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v,
-                                      solve=math.Solve('auto', 1e-12, 1e-12,
-                                                       gradient_solve=math.Solve('auto', 1e-12, 1e-12)))
+            fluid.make_incompressible(v, order=4,
+                                      solve=math.Solve('scipy-GMres', 1e-12, 1e-12, gradient_solve=math.Solve('scipy-GMres', 1e-12, 1e-12)))
         p += delta_p / dt_
         return v, p
 
-    def adp_phi_flow(self, v, p):
-        adv_diff_press = (advect.semi_lagrangian(v, v, self.dt) - v) / self.dt
-        adv_diff_press += (diffuse.explicit(v, self.vis, self.dt) - v) / self.dt
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
 
+    def adp_mid_ord(self, v, p):
+        adv_diff_press = (advect.finite_difference(v, v, order=4))
+        adv_diff_press += (diffuse.finite_difference(v, self.vis, order=4))
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
+                                                           channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
-    def pt_phi_flow(self, v, p, dt_):
-        v, delta_p = fluid.make_incompressible(v)
+    def pt_mid_ord(self, v, p, dt_=None):
+        if dt_ is None:
+            dt_ = self.dt
+        v, delta_p = \
+            fluid.make_incompressible(v,
+                                      solve=math.Solve('scipy-GMres', 1e-12, 1e-12),
+                                      order=4)
+        p += delta_p / dt_
+        return v, p
+
+
+    def adp_low_ord(self, v, p):
+        adv_diff_press = advect.finite_difference(v, v, self.dt)
+        adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt))
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, gradient_extrapolation=extrapolation.ZERO)
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
+                                                           channel(vector='x,y')) * self.p_grad)
+        return adv_diff_press
+
+    def pt_low_ord(self, v, p, dt_=None):
+        if dt_ is None:
+            dt_ = self.dt
+        v, delta_p = \
+            fluid.make_incompressible(v, order=4,
+                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
         p += delta_p / dt_
         return v, p
 
@@ -219,17 +227,26 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum, extrapolation=extrapolation.combine_sides(
-                x=extrapolation.PERIODIC,
-                y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
+            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum, extrapolation=extrapolation.combine_sides(
+            #     x=extrapolation.PERIODIC,
+            #     y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
+            #
+            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            #                extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+            DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+                          extrapolation=extrapolation.combine_sides(
+                              x=extrapolation.PERIODIC,
+                              y=extrapolation.ZERO))
 
-            DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum, extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
+            DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+                           extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC,
+                                                                     y=extrapolation.ZERO_GRADIENT))
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
         # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
 
-        velocity = StaggeredGrid(0, **DOMAIN)
+        velocity = self.gridtype(0, **DOMAIN)
         vals_x = velocity.values.vector['x']
         t = math.scatter(math.zeros(vals_x.shape.only('x')),
                      tensor([5], instance('points')),
@@ -246,10 +263,10 @@ class TestRun:
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
-        solver_string = 'GMRES' if self.order == 'phi' else 'GMRES'
-        velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
-        velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
-        velocity, pressure = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve(solver_string, 1e-5, 1e-5))
+        solver_string = 'scipy-GMres' if self.order == 'phi' else 'scipy-GMres'
+        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
+        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
+        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
 
 
         # vis.plot(solveinfo.residual, title=f'residual')
@@ -672,10 +689,10 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 # # test.more_plots()
 #
 #
-# test = TestRun(0, StaggeredGrid, "low", 10, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
-# test.run(t_num=150000, freq=750, jit_compile=True)
-# test.draw_plots()
-# test.more_plots()
+test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
+test.run(t_num=50000, freq=300, jit_compile=True)
+test.draw_plots()
+test.more_plots()
 #
 # test = TestRun(0, StaggeredGrid, "low", 25, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003")
 # test.run(t_num=150000, freq=750, jit_compile=True)
@@ -693,22 +710,22 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 # # test.more_plots()
 #
 
-overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015'],
-               ['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015']],
-              block_names=['high 4/6',
-                           'low   2   '],
-              title='poiseulle - vis=0.01 - press_grad=0.01', folder_name="Poisseuille_flow_6")
-
-overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005'],
-               ['lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005']],
-              block_names=['high 4/6',
-                           'low   2   '],
-              title='poiseulle - vis=0.003 - press_grad=0.01', folder_name="Poisseuille_flow_6")
-
-overview_plot([['Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003'],
-               ['lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003']],
-              block_names=['high 4/6',
-                           'low   2   '],
-              title='poiseulle - vis=0.01 - press_grad=0.05', folder_name="Poisseuille_flow_6")
+# overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015'],
+#                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015']],
+#               block_names=['high 4/6',
+#                            'low   2   '],
+#               title='poiseulle - vis=0.01 - press_grad=0.01', folder_name="Poisseuille_flow_6")
+#
+# overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005'],
+#                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005']],
+#               block_names=['high 4/6',
+#                            'low   2   '],
+#               title='poiseulle - vis=0.003 - press_grad=0.01', folder_name="Poisseuille_flow_6")
+#
+# overview_plot([['Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003'],
+#                ['lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003']],
+#               block_names=['high 4/6',
+#                            'low   2   '],
+#               title='poiseulle - vis=0.01 - press_grad=0.05', folder_name="Poisseuille_flow_6")
 
 print('done')
