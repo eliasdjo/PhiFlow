@@ -30,6 +30,10 @@ def tgv_pressure(x, vis=0, t=0):
 def plane_poisseuille(x, vis, p_grad, h):
     return p_grad/(2*vis) * x*(h-x)
 
+def plane_poisseuille_init(x, vis=1, p_grad=1, h=1):
+    real_poisseuille = math.stack([p_grad/(2*vis) * x.vector['y']*(h-x.vector['y']), x.vector['y']*0], dim=channel(vector='x,y'))
+    return real_poisseuille
+
 
 class TestRun:
 
@@ -47,6 +51,9 @@ class TestRun:
         if order == 'high':
             self.adv_diff_press = self.adp_high_ord
             self.pressure_treatment = self.pt_high_ord
+        if order == 'high_impl':
+            self.adv_diff_press = self.adp_high_ord_impl
+            self.pressure_treatment = self.pt_high_ord_impl
 
         self.order = order
         self.name = name
@@ -136,10 +143,28 @@ class TestRun:
     #     adv_diff_press -= press
     #     return adv_diff_press
 
-    def adp_high_ord(self, v, p):
+    def adp_high_ord_impl(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
+        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
+                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
+                                                           channel(vector='x,y')) * self.p_grad)
+        return adv_diff_press
+
+    def pt_high_ord_impl(self, v, p, dt_=None):
+        if dt_ is None:
+            dt_ = self.dt
+        v, delta_p = \
+            fluid.make_incompressible(v, order=6,
+                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
+        p += delta_p / dt_
+        return v, p
+
+    def adp_high_ord(self, v, p):
+        adv_diff_press = (advect.finite_difference(v, v, order=6))
+        adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6))
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=6, gradient_extrapolation=extrapolation.ZERO)
         adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)],
                                                            channel(vector='x,y')) * self.p_grad)
@@ -150,7 +175,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible(v, order=4,
-                                      solve=math.Solve('scipy-GMres', 1e-12, 1e-12, gradient_solve=math.Solve('scipy-GMres', 1e-12, 1e-12)))
+                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
         p += delta_p / dt_
         return v, p
 
@@ -158,7 +183,7 @@ class TestRun:
     def adp_mid_ord(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, order=4))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=4))
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4)
+        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
         adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
                                                             math.zeros(adv_diff_press.vector['y'].values.shape)],
                                                            channel(vector='x,y')) * self.p_grad)
@@ -169,7 +194,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible(v,
-                                      solve=math.Solve('scipy-GMres', 1e-12, 1e-12),
+                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12),
                                       order=4)
         p += delta_p / dt_
         return v, p
@@ -188,8 +213,7 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v, order=4,
-                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
+            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
         p += delta_p / dt_
         return v, p
 
@@ -245,15 +269,14 @@ class TestRun:
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
         # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
-
-        velocity = self.gridtype(0, **DOMAIN)
-        vals_x = velocity.values.vector['x']
-        t = math.scatter(math.zeros(vals_x.shape.only('x')),
-                     tensor([5], instance('points')),
-                     tensor([5], instance('points')))
-        vals_x = vals_x + t
-
-        velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel(vector='x,y')))
+        from functools import partial
+        velocity = self.gridtype((partial(plane_poisseuille_init, vis=self.vis, p_grad=self.p_grad, h=DOMAIN['bounds'].size.vector['y'])), **DOMAIN)
+        # velocity += self.gridtype(Noise(scale=0.05), **DOMAIN)*0.001
+        # velocity *= 1.1
+        velocity *= 0
+        if self.gridtype == CenteredGrid:
+            velocity = math.expand(velocity, channel(vector='x,y'))
+        math.expand(velocity, channel(vector='x,y'))
         pressure = CenteredGrid(0, **DOMAIN2)
 
         # vis.plot(velocity, pressure, title=f'vel and press')
@@ -263,10 +286,25 @@ class TestRun:
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
-        solver_string = 'scipy-GMres' if self.order == 'phi' else 'scipy-GMres'
-        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
-        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
-        velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
+        vel_data = [velocity]
+        press_data = [pressure]
+
+
+        # vals_x = velocity.values.vector['x']
+        # t = math.scatter(math.zeros(vals_x.shape.only('x')),
+        #              tensor([5], instance('points')),
+        #              tensor([1], instance('points')))
+        # vals_x = vals_x + t
+        # velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel(vector='x,y')))
+
+        vel_data.append(velocity)
+        press_data.append(pressure)
+
+        # solver_string = 'biCG-stab(2)' if self.order == 'phi' else 'biCG-stab(2)'
+        # for i in range(3):
+        #     velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve(solver_string, 1e-5, 1e-5))
+        #     vis.plot(velocity, pressure, title=f'vel and press after intital mk incompressible {i}')
+        #     vis.show()
 
 
         # vis.plot(solveinfo.residual, title=f'residual')
@@ -278,12 +316,6 @@ class TestRun:
 
         # velocity = StaggeredGrid(tgv_velocity, **DOMAIN)
         # pressure = CenteredGrid(tgv_pressure, **DOMAIN2)
-
-        vel_data = []
-        press_data = []
-
-        vel_data.append(velocity)
-        press_data.append(pressure)
 
         for i in range(self.t_num):
 
@@ -322,7 +354,7 @@ class TestRun:
         vel = unstack(vel_data, 'time')
         press = unstack(press_data, 'time')
 
-        for i in range(int((t_num + 1) / freq)):
+        for i in range(int(t_num / freq)+1):
             t = tensor(i * freq * dt)
             # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
             # timestamp = '{:07.4f}'.format(float(t))
@@ -352,18 +384,28 @@ class TestRun:
         # p_grad = 0.01
 
 
-        vel = unstack(vel_data, 'time')
+        # vel = unstack(vel_data, 'time')
         press = unstack(press_data, 'time')
 
 
-        last_vel = vel[-1].vector['x']
-        avg_profile = math.sum(last_vel.values, 'x') / last_vel.values.shape.only('y').size
-        profile_points = vel[-1].vector['x'].x[0].points
+        # last_vel = vel[-1].vector['x']
+        avg_profiles = math.sum(vel_data.vector['x'].values, 'x') / vel_data.values.shape.only('x').size
 
-        ana_sol = plane_poisseuille(profile_points, visc, p_grad, last_vel.bounds.size.vector['y'])
-        f1 = vis.plot([avg_profile, ana_sol, avg_profile - ana_sol], same_scale=False, title="avg_profile, ana_sol, avg_profile")._obj
+        last_avg_profile = avg_profiles.time[-1]
+        vel_grid_profile_sample = vel_data.vector['x'].time[0].x[0]
+        last_avg_profile_points = vel_grid_profile_sample.points.vector['y']
+
+        ana_sol = plane_poisseuille(last_avg_profile_points, visc, p_grad, vel_grid_profile_sample.bounds.size.vector['y'])
+        f1 = vis.plot([last_avg_profile, ana_sol, last_avg_profile - ana_sol], same_scale=False, title="last_avg_profile, ana_sol, difference")._obj
         # vis.show()
         vis.savefig(f"plots/{self.name}/velprofile_anasol_error_plot.jpg", f1)
+        vis.close()
+
+        error_dev = math.abs(math.sum(avg_profiles - ana_sol, 'y')) / ana_sol.shape.size
+        f2 = vis.plot(vec(time=math.range_tensor(spatial(time=error_dev.time.size)), errors=error_dev.time.as_spatial()),
+                      same_scale=False, title="errors over time", log_dims='errors')._obj
+        # vis.show()
+        vis.savefig(f"plots/{self.name}/errors_over_time.jpg", f2)
         vis.close()
 
         print('done')
@@ -689,20 +731,28 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 # # test.more_plots()
 #
 #
-test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
-test.run(t_num=50000, freq=300, jit_compile=True)
-test.draw_plots()
-test.more_plots()
+# test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003")
+# test.run(t_num=100, freq=1, jit_compile=True)
+# test.draw_plots()
+# test.more_plots()
 #
 # test = TestRun(0, StaggeredGrid, "low", 25, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003")
 # test.run(t_num=150000, freq=750, jit_compile=True)
 # test.draw_plots()
 # test.more_plots()
 #
-# test = TestRun(0, StaggeredGrid, "low", 50, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003")
-# test.run(t_num=150000, freq=750, jit_compile=True)
+# test = TestRun(0, CenteredGrid, "high", 50, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re50_dp0.05_vis0.01_dt0.0003_6")
+# test.run(t_num=5000, freq=500, jit_compile=True)
 # test.draw_plots()
 # test.more_plots()
+
+for ord in ["low", "mid", "high"]:
+    for res in [8, 15, 30, 60, 120]:
+        test = TestRun(0, CenteredGrid, ord, res, 0.05, 0.01, 0.0003,
+                       name=f"{ord}_Poiseuille_flow_res_{res}_dp0.05_vis_0.01_dt0.0003_2")
+        test.run(t_num=300000, freq=1000, jit_compile=True)
+        test.draw_plots()
+        test.more_plots()
 #
 # # test = TestRun(0, StaggeredGrid, "low", 100, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re100_dp0.05_vi0.01_dt0.0003")
 # # test.run(t_num=100000, freq=500, jit_compile=True)
