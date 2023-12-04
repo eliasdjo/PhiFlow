@@ -38,6 +38,7 @@ def bake_extrapolation(grid: GridType) -> GridType:
         raise ValueError(f"Not a valid grid: {grid}")
 
 
+# @jit_compile_linear(auxiliary_args="axes, order, implicit, weights, implicitness")
 def laplace(field: GridType,
             axes=spatial,
             order=2,
@@ -94,7 +95,8 @@ def laplace(field: GridType,
 
     return field.with_values(result)
 
-
+# @jit_compile_linear(auxiliary_args='gradient_extrapolation, type, grad_dims, '
+#                                    'stack_dim, order, implicit, implicitness')
 def spatial_gradient(field: CenteredGrid,
                      gradient_extrapolation: Extrapolation = None,
                      type: type = CenteredGrid,
@@ -139,7 +141,9 @@ def spatial_gradient(field: CenteredGrid,
 
     if gradient_extrapolation is None:
         # gradient_extrapolation = field.extrapolation.spatial_gradient()
-        gradient_extrapolation = field.extrapolation
+        # gradient_extrapolation = field.extrapolation
+        gradient_extrapolation = extrapolation.map(lambda ext: extrapolation.ZERO if ext == extrapolation.ZERO_GRADIENT else ext,
+                                                   field.extrapolation)
 
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
@@ -302,7 +306,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
             return extrapolation.ONE if ext in target_extrapolations else extrapolation.ZERO
         return f
 
-    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO]),
+    input_valid_ext = extrapolation.map(ext_list_to_map_func([extrapolation.ZERO, extrapolation.ONE]),
                                         ext)
     # input_valid_ext = extrapolation.ZERO
     input_valid_mask = standard_mask.with_extrapolation(input_valid_ext)
@@ -312,7 +316,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
                                                             extrapolation.ConstantExtrapolation(100),
                                                             extrapolation.ZERO,
                                                             extrapolation.ZERO_GRADIENT,
-                                                            extrapolation.SYMMETRIC,
+                                                            extrapolation.SYMMETRIC, extrapolation.ONE
                                                             ]), ext)
     # one_sided_ext = extrapolation.ONE
     one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
@@ -527,7 +531,7 @@ def stagger(field: CenteredGrid,
     else:
         raise ValueError(type)
 
-
+# @jit_compile_linear(auxiliary_args='order, implicit, implicitness')
 def divergence(field: Grid, order=2, implicit: Solve = None, implicitness=None) -> CenteredGrid:
     """
     Computes the divergence of a grid using finite differences.
