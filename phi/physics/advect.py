@@ -109,11 +109,12 @@ def finite_difference(grid: Grid,
         amount = sum(amounts)
     else:
         assert isinstance(grid, CenteredGrid), f"grid must be CenteredGrid or StaggeredGrid but got {type(grid)}"
-        grad = stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit) for component in grid.vector], dim=channel('vector'))
-        velocity = stack(unstack(velocity, dim='vector'), dim=channel('gradient'))
-        amounts = velocity * grad
+        # grad = stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit) for component in grid.vector], dim=channel('vector'))
+        grad_tensor = math.stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit).values for component in grid.vector], dim=channel('vector'))
+        velocity_tensor = math.stack(math.unstack(velocity.values, dim='vector'), dim=channel('gradient'))
+        amounts = velocity_tensor * grad_tensor
         amount = sum(amounts.gradient)
-    return - amount
+    return velocity.with_values(- amount)
 
 
 def points(field: PointCloud, velocity: Field, dt: float, integrator=euler):

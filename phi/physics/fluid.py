@@ -98,41 +98,48 @@ def make_incompressible(velocity: GridType,
         velocity: divergence-free velocity of type `type(velocity)`
         pressure: solved pressure field, `CenteredGrid`
     """
-    obstacles = _get_obstacles_for(obstacles, velocity)
-    assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"
+    # obstacles = _get_obstacles_for(obstacles, velocity)
+    # assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"
     input_velocity = velocity
-    # --- Create masks ---
-    accessible_extrapolation = _accessible_extrapolation(input_velocity.extrapolation)
-    with NUMPY:
-        accessible = CenteredGrid(~union([obs.geometry for obs in obstacles]), accessible_extrapolation, velocity.bounds, velocity.resolution)
-        hard_bcs = field.stagger(accessible, math.minimum, input_velocity.extrapolation, type=type(velocity))
-    all_active = active is None
-    if active is None:
-        active = accessible.with_extrapolation(extrapolation.NONE)
-    else:
-        active *= accessible  # no pressure inside obstacles
+    # # --- Create masks ---
+    # accessible_extrapolation = _accessible_extrapolation(input_velocity.extrapolation)
+    # with NUMPY:
+    #     accessible = CenteredGrid(~union([obs.geometry for obs in obstacles]), accessible_extrapolation, velocity.bounds, velocity.resolution)
+    #     hard_bcs = field.stagger(accessible, math.minimum, input_velocity.extrapolation, type=type(velocity))
+    # all_active = active is None
+    # if active is None:
+    #     active = accessible.with_extrapolation(extrapolation.NONE)
+    # else:
+    #     active *= accessible  # no pressure inside obstacles
     # --- Linear solve ---
-    velocity = apply_boundary_conditions(velocity, obstacles)
-    div = divergence(velocity, order=order) * active
-    if not all_active:  # NaN in velocity allowed
-        div = field.where(field.is_finite(div), div, 0)
-    if not input_velocity.extrapolation.is_flexible and all_active:
-        solve = solve.with_preprocessing(_balance_divergence, active)
+    # velocity = apply_boundary_conditions(velocity, obstacles)
+    # div = divergence(velocity, order=order) * active
+    div = divergence(velocity, order=order)
+    # from phi import vis
+    # vis.plot(div, title=f'div')
+    # vis.show()
+    # if not all_active:  # NaN in velocity allowed
+    #     div = field.where(field.is_finite(div), div, 0)
+    # if not input_velocity.extrapolation.is_flexible and all_active:
+    #     solve = solve.with_preprocessing(_balance_divergence, active)
     if solve.x0 is None:
         pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
-    if batch(math.merge_shapes(*obstacles)).without(batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
-        solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
-    t = masked_laplace(div.with_extrapolation(extrapolation.PERIODIC), hard_bcs, active, order=order)
-    t2 = masked_laplace(solve.x0, hard_bcs, active, order=order)
-    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
+    # if batch(math.merge_shapes(*obstacles)).without(batch(solve.x0)):  # The initial pressure guess must contain all batch dimensions
+    #     solve = copy_with(solve, x0=expand(solve.x0, batch(math.merge_shapes(*obstacles))))
+    # t = masked_laplace(solve.x0, hard_bcs, active, order=order)
+    # t2 = masked_laplace(solve.x0, hard_bcs, active, order=order)
+    # pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
+    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order)
     # --- Subtract grad p ---
-    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order) * hard_bcs
+    # grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order) * hard_bcs
+    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order)
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
     return velocity, pressure
 
 
 @math.jit_compile_linear(auxiliary_args='hard_bcs,active,order,implicit', forget_traces=True)  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
+# @math.jit_compile(auxiliary_args='hard_bcs,active,order,implicit', forget_traces=True)  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
 def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid, order=2, implicit: Solve = None) -> CenteredGrid:
     """
     Computes the laplace of `pressure` in the presence of obstacles.
@@ -154,14 +161,35 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     Returns:
         `CenteredGrid`
     """
-    if order == 2 and not implicit:
-        grad = spatial_gradient(pressure, hard_bcs.extrapolation, type=type(hard_bcs))
-        valid_grad = grad * hard_bcs
-        valid_grad = valid_grad.with_extrapolation(extrapolation.remove_constant_offset(valid_grad.extrapolation))
-        div = divergence(valid_grad)
-        laplace = where(active, div, pressure)
-    else:
-        laplace = field.laplace(pressure, order=order, implicit=implicit)
+    # if order == 2 and not implicit:
+    #     grad = spatial_gradient(pressure, hard_bcs.extrapolation, type=type(hard_bcs))
+    #     valid_grad = grad * hard_bcs
+    #     valid_grad = valid_grad.with_extrapolation(extrapolation.remove_constant_offset(valid_grad.extrapolation))
+    #     div = divergence(valid_grad)
+    #     laplace = where(active, div, pressure)
+    # else:
+    from phi import vis
+    # vis.plot(pressure, title=f'press')
+    # vis.show()
+    grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
+    # vis.plot(grad.vector['x'], grad.vector['y'], title=f'grad x,y')
+    # vis.show()
+    # from phi import vis
+    # vis.plot(grad.vector[0], grad.vector[1], title=f'grad x, y')
+    # vis.show()
+    laplace = divergence(grad, order=order)
+    # laplace = field.laplace(pressure, order=order, implicit=implicit)
+    # vis.plot(laplace, laplace2, title=f'lap1, lap2')
+    # vis.show()
+
+    # sum = math.sum(laplace.values)
+    # vals = laplace.values
+    # vals = math.scatter(vals,
+    #                     math.tensor([[0, 0]], math.instance('points'), math.channel('vector')),
+    #                     math.tensor([sum], math.instance('points')))
+    # laplace.with_values(vals)
+    # laplace.with_values(laplace.values + sum)
+
     return laplace
 
 
