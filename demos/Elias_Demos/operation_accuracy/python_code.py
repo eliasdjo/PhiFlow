@@ -270,10 +270,10 @@ for i in range(0, 6):
     for g in [CenteredGrid, StaggeredGrid]:
         TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
                 [
-                    partial(field.spatial_gradient, order=2, type=g),
-                    partial(field.spatial_gradient, order=4, type=g),
-                    partial(field.spatial_gradient, order=6, type=g),
-                    partial(field.spatial_gradient, order=8, type=g),
+                    # partial(field.spatial_gradient, order=2, type=g),
+                    # partial(field.spatial_gradient, order=4, type=g),
+                    # partial(field.spatial_gradient, order=6, type=g),
+                    # partial(field.spatial_gradient, order=8, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
                     # partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
@@ -399,24 +399,24 @@ for i in range(0, 6):
 #         tgv_velocity_advect, ["std", "kamp", "laiz"])
 #
 
-for i in range(0, 1):
-# # for i in [1]:
-    TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
-            [
-                # partial(field.divergence, order=2),
-                partial(field.divergence, order=4),
-                # partial(field.divergence, order=6),
-                # partial(field.divergence, order=8),
-                # partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-                # partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-            ],
-            div_test_anal_sol,
-            ["ord_2", "ord_4", "ord_6", "ord_8",
-             "ord_6_impl_2",
-             # "prd_6_impl_4",
-             "ord_8_impl_2",
-             # "ord_8_impl_4"
-             ], boundaries=i, div_test=True)
+# for i in range(0, 1):
+# # # for i in [1]:
+#     TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
+#             [
+#                 # partial(field.divergence, order=2),
+#                 partial(field.divergence, order=4),
+#                 # partial(field.divergence, order=6),
+#                 # partial(field.divergence, order=8),
+#                 # partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#                 # partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+#             ],
+#             div_test_anal_sol,
+#             ["ord_2", "ord_4", "ord_6", "ord_8",
+#              "ord_6_impl_2",
+#              # "prd_6_impl_4",
+#              "ord_8_impl_2",
+#              # "ord_8_impl_4"
+#              ], boundaries=i, div_test=True)
 
 
 
