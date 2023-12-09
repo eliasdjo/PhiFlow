@@ -114,7 +114,11 @@ def finite_difference(grid: Grid,
         velocity_tensor = math.stack(math.unstack(velocity.values, dim='vector'), dim=channel('gradient'))
         amounts = velocity_tensor * grad_tensor
         amount = sum(amounts.gradient)
-    return velocity.with_values(- amount)
+    from phi.math import extrapolation
+    new_ext = extrapolation.map(
+        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
+        velocity.extrapolation)
+    return velocity.with_values(- amount).with_extrapolation(new_ext)
 
 
 def points(field: PointCloud, velocity: Field, dt: float, integrator=euler):

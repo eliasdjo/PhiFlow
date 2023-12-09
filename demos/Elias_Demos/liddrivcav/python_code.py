@@ -204,9 +204,6 @@ class TestRun:
         adv_diff_press = advect.finite_difference(v, v, self.dt)
         adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, gradient_extrapolation=extrapolation.ZERO)
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
-                                                           channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
     def pt_low_ord(self, v, p, dt_=None):
@@ -220,12 +217,12 @@ class TestRun:
     def run(self, jit_compile=True, t_num=0, freq=100):
         print(f"run {self.name}:")
 
-        # while(True):
-        #     try:
-        #         os.mkdir(f"data/{self.name}")
-        #         break
-        #     except FileExistsError:
-        #         self.name = self.name + '_'
+        while(True):
+            try:
+                os.mkdir(f"data/{self.name}")
+                break
+            except FileExistsError:
+                self.name = self.name + '_'
 
         if jit_compile:
             timestepper = math.jit_compile(self.timestep)
@@ -344,12 +341,12 @@ class TestRun:
 
         field.write(stack(vel_data, batch('time')), f"data/{self.name}/vel")
         field.write(stack(press_data, batch('time')), f"data/{self.name}/press")
-        # np.savez(f"data/{self.name}/data", t_num=self.t_num, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad)
+        np.savez(f"data/{self.name}/data", t_num=self.t_num, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad)
 
         print()
 
     def draw_plots(self):
-        os.mkdir(f"plots/{self.name}")
+        # os.mkdir(f"plots/{self.name}")
 
         vel_data = field.read(f"data/{self.name}/vel.npz")
         press_data = field.read(f"data/{self.name}/press.npz")
@@ -373,7 +370,7 @@ class TestRun:
             # timestamp = '{:07.4f}'.format(float(t))
             # vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
             # vis.close()
-            f1 = vis.plot(vel[i].vector[0], press[i], title=f'{i}: vel_x, press')._obj
+            f1 = vis.plot(vel[i], press[i], title=f'{i}: vel_x, press')._obj
             timestamp = '{:07.4f}'.format(float(t))
             vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
             vis.close()
@@ -536,10 +533,10 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 #
-test = TestRun(0, CenteredGrid, "low", 25, 0.05, 0.01, 0.0003, name="first lid dirven cav")
-test.run(t_num=100, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
-# test.draw_plots()
-# test.more_plots()
+test = TestRun(0, CenteredGrid, "low", 25, 0.05, 0.01, 0.0003, name="firstliddirvencav")
+# test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
+test.draw_plots()
+test.more_plots()
 
 # for ord in ["low", "mid", "high"]:
 #     for res in [8, 15, 30, 60, 120]:

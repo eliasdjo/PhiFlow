@@ -76,10 +76,14 @@ def laplace(field: GridType,
     else:
         fields = [field]
 
+    laplace_ext = extrapolation.map(
+            lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
+            field.extrapolation)
+
     result = []
     for f in fields:
         result_components = [perform_finite_difference_operation(f.values, dim, 2, f.dx.vector[dim], f.extrapolation,
-                                                                 f.extrapolation, CenteredGrid, order, implicit, implicitness) for dim in laplace_dims]
+                                                                 laplace_ext, CenteredGrid, order, implicit, implicitness) for dim in laplace_dims]
         if weights is not None:
             assert channel(weights).rank == 1 and channel(
                 weights).item_names is not None, f"weights must have one channel dimension listing the laplace dims but got {shape(weights)}"
@@ -93,7 +97,7 @@ def laplace(field: GridType,
     else:
         result = result[0]
 
-    return field.with_values(result)
+    return field.with_values(result).with_extrapolation(laplace_ext)
 
 # @jit_compile_linear(auxiliary_args='gradient_extrapolation, type, grad_dims, '
 #                                    'stack_dim, order, implicit, implicitness')
@@ -144,6 +148,9 @@ def spatial_gradient(field: CenteredGrid,
         # gradient_extrapolation = field.extrapolation
         gradient_extrapolation = extrapolation.map(lambda ext: extrapolation.ZERO if ext == extrapolation.ZERO_GRADIENT else ext,
                                                    field.extrapolation)
+        gradient_extrapolation = extrapolation.map(
+            lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
+            field.extrapolation)
 
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
