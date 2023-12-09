@@ -96,7 +96,7 @@ def finite_difference(grid: Grid,
         Diffused grid of same type as `grid`.
     """
     diffusivity = diffusivity.at(grid) if isinstance(diffusivity, Field) else diffusivity
-    return diffusivity * laplace(grid, order=order, implicit=implicit).with_extrapolation(grid.extrapolation)
+    return diffusivity * laplace(grid, order=order, implicit=implicit)
 
 
 def fourier(field: GridType,

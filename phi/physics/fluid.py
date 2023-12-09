@@ -71,6 +71,12 @@ def _get_obstacles_for(obstacles, space: Field):
         assert obstacle.geometry.vector.item_names == space.vector.item_names, f"Obstacles must live in the same physical space as the velocity field {space.vector.item_names} but got {type(obstacle.geometry).__name__} obstacle with order {obstacle.geometry.vector.item_names}"
     return obstacles
 
+# from phi.flow import *
+# from phiml._troubleshoot import plot_solves
+#
+# with plot_solves():
+#     fluid.make_incompressible(StaggeredGrid(Noise(), x=10, y=10))
+
 
 def make_incompressible(velocity: GridType,
                         obstacles: Union[Obstacle, Geometry, tuple, list] = (),
@@ -103,25 +109,25 @@ def make_incompressible(velocity: GridType,
     input_velocity = velocity
     # # --- Create masks ---
     # accessible_extrapolation = _accessible_extrapolation(input_velocity.extrapolation)
-    # with NUMPY:
-    #     accessible = CenteredGrid(~union([obs.geometry for obs in obstacles]), accessible_extrapolation, velocity.bounds, velocity.resolution)
-    #     hard_bcs = field.stagger(accessible, math.minimum, input_velocity.extrapolation, type=type(velocity))
-    # all_active = active is None
-    # if active is None:
-    #     active = accessible.with_extrapolation(extrapolation.NONE)
-    # else:
-    #     active *= accessible  # no pressure inside obstacles
+    with NUMPY:
+        accessible = CenteredGrid(~union([obs.geometry for obs in obstacles]), accessible_extrapolation, velocity.bounds, velocity.resolution)
+        hard_bcs = field.stagger(accessible, math.minimum, input_velocity.extrapolation, type=type(velocity))
+    all_active = active is None
+    if active is None:
+        active = accessible.with_extrapolation(extrapolation.NONE)
+    else:
+        active *= accessible  # no pressure inside obstacles
     # --- Linear solve ---
-    # velocity = apply_boundary_conditions(velocity, obstacles)
-    # div = divergence(velocity, order=order) * active
-    div = divergence(velocity, order=order)
+    velocity = apply_boundary_conditions(velocity, obstacles)
+    div = divergence(velocity, order=order) * active
+    # div = divergence(velocity, order=order)
     # from phi import vis
     # vis.plot(div, title=f'div')
     # vis.show()
-    # if not all_active:  # NaN in velocity allowed
-    #     div = field.where(field.is_finite(div), div, 0)
-    # if not input_velocity.extrapolation.is_flexible and all_active:
-    #     solve = solve.with_preprocessing(_balance_divergence, active)
+    if not all_active:  # NaN in velocity allowed
+        div = field.where(field.is_finite(div), div, 0)
+    if not input_velocity.extrapolation.is_flexible and all_active:
+        solve = solve.with_preprocessing(_balance_divergence, active)
     if solve.x0 is None:
         pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
@@ -130,7 +136,9 @@ def make_incompressible(velocity: GridType,
     # t = masked_laplace(solve.x0, hard_bcs, active, order=order)
     # t2 = masked_laplace(solve.x0, hard_bcs, active, order=order)
     # pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order)
+    m, off = math.matrix_from_function() + 1
     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order)
+    # pressure = math.solve_linear(m, div-off, solve, math.tensor(0), math.tensor(0), order=order)
     # --- Subtract grad p ---
     # grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order) * hard_bcs
     grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, type=type(velocity), order=order)
@@ -182,7 +190,7 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     # vis.plot(laplace, laplace2, title=f'lap1, lap2')
     # vis.show()
 
-    # sum = math.sum(laplace.values)
+    sum = math.sum(laplace.values) # math.
     # vals = laplace.values
     # vals = math.scatter(vals,
     #                     math.tensor([[0, 0]], math.instance('points'), math.channel('vector')),
