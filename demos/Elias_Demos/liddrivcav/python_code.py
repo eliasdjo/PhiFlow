@@ -536,7 +536,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "low", 4, 0.05, 0.01, 0.0003, name="firstliddirvencav")
+test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav")
 test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
 test.draw_plots()
 test.more_plots()
