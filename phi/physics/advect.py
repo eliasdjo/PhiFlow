@@ -108,7 +108,7 @@ def finite_difference(grid: Grid,
             amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, velocity.vector)]
         amount = sum(amounts)
     else:
-        assert isinstance(grid, CenteredGrid), f"grid must be CenteredGrid or StaggeredGrid but got {type(grid)}"
+        assert isinstance(grid, CenteredGrid), f"grid must be CenteredGrid or StaggeredGrid but got {type(grid)}" #ToDo Ed boudaries for non periodic case
         # grad = stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit) for component in grid.vector], dim=channel('vector'))
         grad_tensor = math.stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit).values for component in grid.vector], dim=channel('vector'))
         velocity_tensor = math.stack(math.unstack(velocity.values, dim='vector'), dim=channel('gradient'))

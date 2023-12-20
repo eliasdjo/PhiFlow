@@ -238,7 +238,7 @@ xy_nums = [10, 35, 65, 105, 165, 225]
 # xy_nums = [35, 65, 105, 165, 225]
 # xy_nums = [15, 22, 35, 65, 105]
 # xy_nums = [65]
-# xy_nums = [2]
+# xy_nums = [10]
 # xy_nums = [5, 15, 35]
 
 
@@ -264,47 +264,47 @@ xy_nums = [10, 35, 65, 105, 165, 225]
 
 
 # # for i in [0]:
-for i in range(0, 6):
+# for i in range(0, 6):
 # # for i in [0]:
 # #     for g in [StaggeredGrid]:
-    for g in [CenteredGrid, StaggeredGrid]:
-        TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
-                [
-                    partial(field.spatial_gradient, order=2, type=g),
-                    partial(field.spatial_gradient, order=4, type=g),
-                    partial(field.spatial_gradient, order=6, type=g),
-                    partial(field.spatial_gradient, order=8, type=g),
-                    partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
-                    partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
-                    partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
-                    partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-11, 1e-11), implicitness=4, type=g),
-                    ],
-                tgv_velocity_gradient_fst_comp,
-                ["ord_2", "ord_4", "ord_6", "ord_8", "ord_6_impl_2",
-                 # "prd_6_impl_4",
-                 "ord_8_impl_2",
-                 # "ord_8_impl_4"
-                 ],
-                scalar_input=0, input_gridtype=CenteredGrid, boundaries=i)
+#     for g in [CenteredGrid, StaggeredGrid]:
+#         TestRun(f"gradient_fst_comp_{'' if g == CenteredGrid else 'staggered_'}bnd_{i}", xy_nums, g,
+#                 [
+#                     partial(field.spatial_gradient, order=2, type=g),
+#                     partial(field.spatial_gradient, order=4, type=g),
+#                     partial(field.spatial_gradient, order=6, type=g),
+#                     partial(field.spatial_gradient, order=8, type=g),
+#                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
+#                     partial(field.spatial_gradient, order=6, implicit=Solve('scipy-GMres', 1e-11, 1e-12), implicitness=4, type=g),
+#                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2, type=g),
+#                     partial(field.spatial_gradient, order=8, implicit=Solve('scipy-GMres', 1e-11, 1e-11), implicitness=4, type=g),
+#                     ],
+#                 tgv_velocity_gradient_fst_comp,
+#                 ["ord_2", "ord_4", "ord_6", "ord_8", "ord_6_impl_2",
+#                  "prd_6_impl_4",
+#                  "ord_8_impl_2",
+#                  "ord_8_impl_4"
+#                  ],
+#                 scalar_input=0, input_gridtype=CenteredGrid, boundaries=i)
 
-# for i in range(0, 6):
-# # for i in [1]:
-#     TestRun(f"laplacian_bnd_{i}", xy_nums, CenteredGrid,
-#             [
-#                 partial(field.laplace, order=2),
-#                 partial(field.laplace, order=4),
-#                 partial(field.laplace, order=6),
-#                 partial(field.laplace, order=8),
-#                 partial(field.laplace, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-#                 partial(field.laplace, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-#                 ],
-#             tgv_velocity_laplacian,
-#             ["ord_2", "ord_4", "ord_6", "ord_8",
-#              "ord_6_impl_2",
-#              # "prd_6_impl_4",
-#              "ord_8_impl_2",
-#              # "ord_8_impl_4"
-#              ], boundaries=i)
+for i in range(0, 6):
+# for i in [1]:
+    TestRun(f"laplacian_bnd_{i}", xy_nums, CenteredGrid,
+            [
+                partial(field.laplace, order=2),
+                partial(field.laplace, order=4),
+                partial(field.laplace, order=6),
+                partial(field.laplace, order=8),
+                partial(field.laplace, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                partial(field.laplace, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                ],
+            tgv_velocity_laplacian,
+            ["ord_2", "ord_4", "ord_6", "ord_8",
+             "ord_6_impl_2",
+             # "prd_6_impl_4",
+             "ord_8_impl_2",
+             # "ord_8_impl_4"
+             ], boundaries=i)
 
 # for i in range(4, 6):
 # # for i in [1]:
@@ -399,24 +399,24 @@ for i in range(0, 6):
 #         tgv_velocity_advect, ["std", "kamp", "laiz"])
 #
 
-# for i in range(0, 1):
-# # # for i in [1]:
-#     TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
-#             [
-#                 # partial(field.divergence, order=2),
-#                 partial(field.divergence, order=4),
-#                 # partial(field.divergence, order=6),
-#                 # partial(field.divergence, order=8),
-#                 # partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-#                 # partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
-#             ],
-#             div_test_anal_sol,
-#             ["ord_2", "ord_4", "ord_6", "ord_8",
-#              "ord_6_impl_2",
-#              # "prd_6_impl_4",
-#              "ord_8_impl_2",
-#              # "ord_8_impl_4"
-#              ], boundaries=i, div_test=True)
+for i in range(0, 1):
+# # for i in [1]:
+    TestRun(f"divergence_{i}", xy_nums, CenteredGrid,
+            [
+                # partial(field.divergence, order=2),
+                partial(field.divergence, order=4),
+                # partial(field.divergence, order=6),
+                # partial(field.divergence, order=8),
+                # partial(field.divergence, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+                # partial(field.divergence, order=8, implicit=Solve('scipy-GMres', 1e-12, 1e-12), implicitness=2),
+            ],
+            div_test_anal_sol,
+            ["ord_2", "ord_4", "ord_6", "ord_8",
+             "ord_6_impl_2",
+             # "prd_6_impl_4",
+             "ord_8_impl_2",
+             # "ord_8_impl_4"
+             ], boundaries=i, div_test=True)
 
 
 

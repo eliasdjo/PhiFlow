@@ -146,12 +146,14 @@ def spatial_gradient(field: CenteredGrid,
     if gradient_extrapolation is None:
         # gradient_extrapolation = field.extrapolation.spatial_gradient()
         # gradient_extrapolation = field.extrapolation
-        gradient_extrapolation = extrapolation.map(lambda ext: extrapolation.ZERO if ext == extrapolation.ZERO_GRADIENT else ext,
-                                                   field.extrapolation)
-        gradient_extrapolation = extrapolation.map(
-            lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
-            field.extrapolation)
 
+        def grad_ext_map(ext):
+            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE:
+                return extrapolation.ZERO
+            else:
+                return ext
+        gradient_extrapolation = extrapolation.map(grad_ext_map,
+                                                   field.extrapolation)
     if implicitness is None:
         implicitness = 0 if implicit is None else 2
     elif implicitness != 0:

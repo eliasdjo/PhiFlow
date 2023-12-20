@@ -248,12 +248,6 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum, extrapolation=extrapolation.combine_sides(
-            #     x=extrapolation.PERIODIC,
-            #     y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
-            #
-            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-            #                extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.SYMMETRIC))
             DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
@@ -262,12 +256,18 @@ class TestRun:
             DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
+            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            #               extrapolation=extrapolation.PERIODIC)
+            #
+            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            #                extrapolation=extrapolation.PERIODIC)
+
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
         # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
         from functools import partial
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        # velocity += self.gridtype(Noise(scale=0.05), **DOMAIN)*0.001
+        velocity += self.gridtype(Noise(scale=0.05), **DOMAIN)*0.01
         # velocity *= 1.1
         # velocity *= 0
         # if self.gridtype == CenteredGrid:
@@ -275,10 +275,12 @@ class TestRun:
         # math.expand(velocity, channel(vector='x,y'))
         pressure = CenteredGrid(0, **DOMAIN2)
 
-        vis.plot(velocity, pressure, title=f'vel and press')
-        vis.show()
-        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        vis.show()
+        # vis.plot(velocity, pressure, title=f'vel and press')
+        # vis.show()
+        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
+        # vis.show()
+        # vis.plot(field.divergence(velocity), title=f'div')
+        # vis.show()
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
@@ -296,12 +298,14 @@ class TestRun:
         vel_data.append(velocity)
         press_data.append(pressure)
 
-        # velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve('scipy-direct', 1e-5, 1e-5))
-        #
-        # vis.plot(velocity, pressure, title=f'vel and press')
-        # vis.show()
-        # vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
-        # vis.show()
+        velocity, pressure = fluid.make_incompressible2(velocity, order=2, solve=math.Solve('scipy-direct', 1e-5, 1e-5))
+
+        vis.plot(velocity, pressure, title=f'vel and press')
+        vis.show()
+        vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
+        vis.show()
+        vis.plot(field.divergence(velocity, order=2), title=f'div')
+        vis.show()
 
         # solver_string = 'scipy-direct'
         # for i in range(10):
@@ -532,9 +536,8 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-#
-test = TestRun(0, CenteredGrid, "low", 25, 0.05, 0.01, 0.0003, name="firstliddirvencav")
-# test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
+test = TestRun(0, CenteredGrid, "low", 4, 0.05, 0.01, 0.0003, name="firstliddirvencav")
+test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
 test.draw_plots()
 test.more_plots()
 
