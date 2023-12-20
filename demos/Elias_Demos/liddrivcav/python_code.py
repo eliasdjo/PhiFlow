@@ -256,11 +256,11 @@ class TestRun:
             DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
-            DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-                          extrapolation=extrapolation.PERIODIC)
-
-            DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-                           extrapolation=extrapolation.PERIODIC)
+            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            #               extrapolation=extrapolation.PERIODIC)
+            #
+            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            #                extrapolation=extrapolation.PERIODIC)
 
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
         # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
@@ -298,8 +298,8 @@ class TestRun:
         vel_data.append(velocity)
         press_data.append(pressure)
 
-        velocity, pressure = fluid.make_incompressible(velocity, order=2, solve=math.Solve('scipy-direct', 1e-5, 1e-5))
-        #
+        velocity, pressure = fluid.make_incompressible2(velocity, order=2, solve=math.Solve('scipy-direct', 1e-5, 1e-5))
+
         vis.plot(velocity, pressure, title=f'vel and press')
         vis.show()
         vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
@@ -536,7 +536,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav")
+test = TestRun(0, CenteredGrid, "low", 4, 0.05, 0.01, 0.0003, name="firstliddirvencav")
 test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
 test.draw_plots()
 test.more_plots()

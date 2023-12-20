@@ -6,8 +6,10 @@ The main function for incompressible fluids (Eulerian as well as FLIP / PIC) is 
 import warnings
 from typing import Tuple, Callable, Union
 
+import numpy.linalg
+
 from phi import math, field
-from phiml.math import wrap, channel, Solve
+from phiml.math import wrap, channel, Solve, dual, spatial
 from phi.field import AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, PointCloud, Field, resample
 from phi.geom import union, Geometry
 from ..field._embed import FieldEmbedding
@@ -93,18 +95,30 @@ def make_incompressible2(velocity: GridType,
     m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
 
-    dense = math.dense(m)
+    dense_orig = math.dense(m) + 1
+    dense_orig = math.dense(m + 1)
     from PhiML.phiml.math._sparse import native_matrix
-    dense = math.pack_dims(dense, 'x, y', channel('_row'))
-    dense = math.pack_dims(dense, '~x, ~y', channel('_col'))
-    inv = sl.inv(dense.native('_row, _col')+1)
-    inv = math.tensor(inv, math.channel('_row, _col'))
-    inv = math.unpack_dim(inv, '_row', math.spatial(x=10, y=10))
-    inv = math.unpack_dim(inv, '_col', math.dual(x=10, y=10))
+    dense = math.reshaped_numpy(dense_orig, [spatial, dual])
+    # dense = math.pack_dims(dense_orig, 'x, y', channel('_row'))
+    # dense = math.pack_dims(dense, '~x, ~y', channel('_col'))
+    inv = numpy.linalg.inv(dense)
+    test = inv @ dense
+    inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
-    div = div - field.mean(div)
-    sol = inv @ div.values
+    # solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
+    # res = math.solve_linear(dense_orig, div, solve, math.tensor(0), math.tensor(0), order=order)
+
+
+
+    # div = div - field.mean(div)
+    sol = inv @ dense_orig
     pressure = dummy.with_values(sol)
+
+    test = res.values - div.values
+
+    from phi import vis
+    vis.plot(pressure.with_values(test), title='test')
+    vis.show()
 
     grad_pressure = field.spatial_gradient(pressure, velocity.extrapolation, type=type(velocity), order=order)
     velocity = (velocity - grad_pressure).with_extrapolation(velocity.extrapolation)
@@ -202,9 +216,9 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     #     # laplace = divergence(grad, order=order)
     #     laplace = field.laplace(pressure, order=order, implicit=implicit)
 
-    grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
-    laplace = divergence(grad, order=order)
-    # laplace = field.laplace(pressure, order=order, implicit=implicit)
+    # grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
+    # laplace = divergence(grad, order=order)
+    laplace = field.laplace(pressure, order=order, implicit=implicit)
 
     return laplace
 
