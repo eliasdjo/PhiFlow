@@ -248,12 +248,12 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            DOMAIN = dict(bounds=Box['x,y', 0:10, 0:10], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
                               y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ONE))))
 
-            DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
+            DOMAIN2 = dict(bounds=Box['x,y', 0:10, 0:10], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
             # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
@@ -267,7 +267,7 @@ class TestRun:
 
         from functools import partial
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        velocity += self.gridtype(Noise(scale=0.05), **DOMAIN)*0.01
+        velocity += self.gridtype(Noise(scale=1), **DOMAIN)*0.01
         # velocity *= 1.1
         # velocity *= 0
         # if self.gridtype == CenteredGrid:
@@ -298,7 +298,7 @@ class TestRun:
         vel_data.append(velocity)
         press_data.append(pressure)
 
-        velocity, pressure = fluid.make_incompressible2(velocity, order=2, solve=math.Solve('scipy-direct', 1e-5, 1e-5))
+        velocity, pressure = fluid.make_incompressible2(velocity, order=2, solve=math.Solve('scipy-GMres', 1e-6, 1e-6))
 
         vis.plot(velocity, pressure, title=f'vel and press')
         vis.show()
@@ -538,8 +538,8 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav")
 test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
-test.draw_plots()
-test.more_plots()
+# test.draw_plots()
+# test.more_plots()
 
 # for ord in ["low", "mid", "high"]:
 #     for res in [8, 15, 30, 60, 120]:

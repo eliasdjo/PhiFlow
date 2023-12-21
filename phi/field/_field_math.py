@@ -148,7 +148,7 @@ def spatial_gradient(field: CenteredGrid,
         # gradient_extrapolation = field.extrapolation
 
         def grad_ext_map(ext):
-            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE:
+            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE or ext == extrapolation.ZERO:
                 return extrapolation.ZERO
             else:
                 return ext

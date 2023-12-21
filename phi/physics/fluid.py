@@ -8,6 +8,7 @@ from typing import Tuple, Callable, Union
 
 import numpy.linalg
 
+import phi.geom
 from phi import math, field
 from phiml.math import wrap, channel, Solve, dual, spatial
 from phi.field import AngularVelocity, Grid, divergence, spatial_gradient, where, CenteredGrid, PointCloud, Field, resample
@@ -86,39 +87,59 @@ def make_incompressible2(velocity: GridType,
                         active: CenteredGrid = None,
                         order: int = 2) -> Tuple[GridType, CenteredGrid]:
 
+    import scipy.linalg as sl
+    from PhiML.phiml.math._sparse import native_matrix
+
 
     div = divergence(velocity, order=order)
-    pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
-    dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
 
-    import scipy.linalg as sl
+    # pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
+    # pressure_extrapolation = extrapolation.combine_sides(           # not working rank 100
+    #                           x=extrapolation.ZERO_GRADIENT,
+    #                           y=(extrapolation.ZERO, extrapolation.ZERO))
+    pressure_extrapolation = extrapolation.combine_sides(           # not working rank 98       # dense() + 1 erhöht matrix rank nicht
+                              x=extrapolation.ZERO_GRADIENT,
+                              y=(extrapolation.ZERO_GRADIENT, extrapolation.ZERO))
+    # pressure_extrapolation = extrapolation.combine_sides(           # not working rank 95
+    #                           x=extrapolation.ZERO_GRADIENT,
+    #                           y=(extrapolation.ZERO_GRADIENT, extrapolation.ZERO_GRADIENT))
+    # # pressure_extrapolation = extrapolation.ONE
+
+    dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
     m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
 
     dense_orig = math.dense(m) + 1
-    dense_orig = math.dense(m + 1)
-    from PhiML.phiml.math._sparse import native_matrix
     dense = math.reshaped_numpy(dense_orig, [spatial, dual])
+
+
+    # geo = phi.geom.Box['x,y', 0:10, 0:10]
+    # dummy2 = CenteredGrid(0, extrapolation.ZERO, geo, div.resolution)
+    # m2, off2 = math.matrix_from_function(masked_laplace, dummy2, math.tensor(0), math.tensor(0),
+    #                                    auxiliary_args='hard_bcs, active, order, implicit', order=order)
+    # dense_orig2 = math.dense(m2)
+    # dense2 = math.reshaped_numpy(dense_orig2, [spatial, dual])
+
     # dense = math.pack_dims(dense_orig, 'x, y', channel('_row'))
     # dense = math.pack_dims(dense, '~x, ~y', channel('_col'))
-    inv = numpy.linalg.inv(dense)
-    test = inv @ dense
-    inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
-    # solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
-    # res = math.solve_linear(dense_orig, div, solve, math.tensor(0), math.tensor(0), order=order)
+    rank = numpy.linalg.matrix_rank(dense)
+    print("rank: ", rank)
+    # inv = numpy.linalg.inv(dense)
+    # unity = inv @ dense
+    # inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
+    solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
+    # div = div - field.mean(div)             # sich das nochmal erklären lassen
+    pressure = math.solve_linear(m, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
+    print("press:  ", math.mean(math.abs(pressure.values)))
+    print("div: ",  math.mean(math.abs(div.values)))
+    print("error: ",  math.mean(math.abs(test.values - div.values)))
 
-
-    # div = div - field.mean(div)
-    sol = inv @ dense_orig
-    pressure = dummy.with_values(sol)
-
-    test = res.values - div.values
-
-    from phi import vis
-    vis.plot(pressure.with_values(test), title='test')
-    vis.show()
+    # from phi import vis
+    # vis.plot(pressure.with_values(test), title='test')
+    # vis.show()
 
     grad_pressure = field.spatial_gradient(pressure, velocity.extrapolation, type=type(velocity), order=order)
     velocity = (velocity - grad_pressure).with_extrapolation(velocity.extrapolation)
