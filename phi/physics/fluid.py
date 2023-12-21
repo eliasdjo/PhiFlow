@@ -93,24 +93,14 @@ def make_incompressible2(velocity: GridType,
 
     div = divergence(velocity, order=order)
 
-    # pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
-    pressure_extrapolation = extrapolation.combine_sides(           # not working rank 100
-                              x=extrapolation.ZERO_GRADIENT,
-                              y=(extrapolation.ZERO, extrapolation.ZERO))
-    # pressure_extrapolation = extrapolation.combine_sides(           # not working rank 98       # dense() + 1 erhöht matrix rank nicht
-    #                           x=extrapolation.ZERO_GRADIENT,
-    #                           y=(extrapolation.ZERO_GRADIENT, extrapolation.ZERO))
-    # pressure_extrapolation = extrapolation.combine_sides(           # not working rank 95
-    #                           x=extrapolation.ZERO_GRADIENT,
-    #                           y=(extrapolation.ZERO_GRADIENT, extrapolation.ZERO_GRADIENT))
-    pressure_extrapolation = extrapolation.ZERO_GRADIENT
+    pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
 
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
     m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
 
     dense_orig = math.dense(m)
-    dense = math.reshaped_numpy(dense_orig, [spatial, dual])
+    # dense = math.reshaped_numpy(dense_orig, [spatial, dual])
 
 
     # geo = phi.geom.Box['x,y', 0:10, 0:10]
@@ -123,14 +113,14 @@ def make_incompressible2(velocity: GridType,
     # dense = math.pack_dims(dense_orig, 'x, y', channel('_row'))
     # dense = math.pack_dims(dense, '~x, ~y', channel('_col'))
 
-    rank = numpy.linalg.matrix_rank(dense+1)
-    print("rank: ", rank)
+    # rank = numpy.linalg.matrix_rank(dense+1)
+    # print("rank: ", rank)
     # inv = numpy.linalg.inv(dense)
     # unity = inv @ dense
     # inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
     solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
-    # div = div - field.mean(div)             # sich das nochmal erklären lassen
+    div = div - field.mean(div)             # sich das nochmal erklären lassen
     pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
     test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
     print("press:  ", math.mean(math.abs(pressure.values)))
@@ -141,8 +131,8 @@ def make_incompressible2(velocity: GridType,
     # vis.plot(pressure.with_values(test), title='test')
     # vis.show()
 
-    grad_pressure = field.spatial_gradient(pressure, velocity.extrapolation, type=type(velocity), order=order)
-    velocity = (velocity - grad_pressure).with_extrapolation(velocity.extrapolation)
+    grad_pressure = field.spatial_gradient(pressure, type=type(velocity), order=order)
+    velocity = velocity - grad_pressure
     return velocity, pressure
 
 

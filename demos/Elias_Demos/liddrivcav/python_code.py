@@ -267,7 +267,7 @@ class TestRun:
 
         from functools import partial
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        velocity += self.gridtype(Noise(scale=1), **DOMAIN)*0.01
+        velocity = velocity.with_values(Noise(velocity.shape, scale=1))
         # velocity *= 1.1
         # velocity *= 0
         # if self.gridtype == CenteredGrid:
@@ -275,12 +275,12 @@ class TestRun:
         # math.expand(velocity, channel(vector='x,y'))
         pressure = CenteredGrid(0, **DOMAIN2)
 
-        # vis.plot(velocity, pressure, title=f'vel and press')
-        # vis.show()
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        # vis.show()
-        # vis.plot(field.divergence(velocity), title=f'div')
-        # vis.show()
+        vis.plot(velocity, pressure, title=f'vel and press')
+        vis.show()
+        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
+        vis.show()
+        vis.plot(field.divergence(velocity), title=f'div')
+        vis.show()
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
@@ -302,7 +302,7 @@ class TestRun:
 
         vis.plot(velocity, pressure, title=f'vel and press')
         vis.show()
-        vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
+        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
         vis.show()
         vis.plot(field.divergence(velocity, order=2), title=f'div')
         vis.show()

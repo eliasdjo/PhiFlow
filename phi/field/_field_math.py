@@ -77,7 +77,7 @@ def laplace(field: GridType,
         fields = [field]
 
     laplace_ext = extrapolation.map(
-            lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
+            lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT else ext,
             field.extrapolation)
 
     result = []
@@ -148,7 +148,7 @@ def spatial_gradient(field: CenteredGrid,
         # gradient_extrapolation = field.extrapolation
 
         def grad_ext_map(ext):
-            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE or ext == extrapolation.ZERO:
+            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE:
                 return extrapolation.ZERO
             else:
                 return ext
