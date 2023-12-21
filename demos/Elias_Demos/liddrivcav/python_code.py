@@ -298,7 +298,7 @@ class TestRun:
         vel_data.append(velocity)
         press_data.append(pressure)
 
-        velocity, pressure = fluid.make_incompressible2(velocity, order=2, solve=math.Solve('scipy-GMres', 1e-6, 1e-6))
+        velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('scipy-GMres', 1e-6, 1e-6))
 
         vis.plot(velocity, pressure, title=f'vel and press')
         vis.show()
