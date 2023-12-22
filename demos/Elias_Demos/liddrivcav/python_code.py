@@ -248,12 +248,12 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            DOMAIN = dict(bounds=Box['x,y', 0:10, 0:10], x=self.xynum, y=self.xynum,
+            DOMAIN = dict(bounds=Box['x,y', 0:self.xynum, 0:self.xynum], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
                               y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ONE))))
 
-            DOMAIN2 = dict(bounds=Box['x,y', 0:10, 0:10], x=self.xynum, y=self.xynum,
+            DOMAIN2 = dict(bounds=Box['x,y', 0:self.xynum, 0:self.xynum], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
             # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
@@ -302,13 +302,14 @@ class TestRun:
         for i in range(5):
             velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('scipy-direct', 1e-6, 1e-6))
 
-            vis.plot(velocity, pressure, title=f'vel and press {i}')
-            vis.show()
-            vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
-            vis.show()
+            # vis.plot(velocity, pressure, title=f'vel and press {i}')
+            # vis.show()
+            # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
+            # vis.show()
             div = field.divergence(velocity, order=4)
             vis.plot(div, title=f'div {i}')
             vis.show()
+            print(f"div {i}: ", math.mean(math.abs(div.values)))
             print(f"max div {i}: ", math.max(math.abs(div.values)))
 
         # solver_string = 'scipy-direct'
@@ -540,7 +541,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav")
+test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav2")
 test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
 # test.draw_plots()
 # test.more_plots()

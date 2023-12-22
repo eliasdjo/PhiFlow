@@ -7,6 +7,7 @@ import warnings
 from typing import Tuple, Callable, Union
 
 import numpy.linalg
+import scipy.linalg
 
 import phi.geom
 from phi import math, field
@@ -87,11 +88,12 @@ def make_incompressible2(velocity: GridType,
                         active: CenteredGrid = None,
                         order: int = 2) -> Tuple[GridType, CenteredGrid]:
 
-    import scipy.linalg as sl
-    from PhiML.phiml.math._sparse import native_matrix
-
 
     div = divergence(velocity, order=order)
+    # input_div_mean = field.mean(div)
+    input_div_mean = 0
+    div = div - input_div_mean            # sich das nochmal erklären lassen
+
 
     pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
 
@@ -100,32 +102,38 @@ def make_incompressible2(velocity: GridType,
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
 
     dense_orig = math.dense(m)
-    # dense = math.reshaped_numpy(dense_orig, [spatial, dual])
+    # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual]) + 1
+    dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
 
+    dense_edit_numpy = numpy.copy(dense_orig_numpy)
+    z = numpy.zeros(dense_edit_numpy[0].size)
+    z[55] = 1
+    dense_edit_numpy[55] = z
 
-    # geo = phi.geom.Box['x,y', 0:10, 0:10]
-    # dummy2 = CenteredGrid(0, extrapolation.ZERO, geo, div.resolution)
-    # m2, off2 = math.matrix_from_function(masked_laplace, dummy2, math.tensor(0), math.tensor(0),
-    #                                    auxiliary_args='hard_bcs, active, order, implicit', order=order)
-    # dense_orig2 = math.dense(m2)
-    # dense2 = math.reshaped_numpy(dense_orig2, [spatial, dual])
+    div_numpy = math.reshaped_numpy(div.values, [spatial])
 
-    # dense = math.pack_dims(dense_orig, 'x, y', channel('_row'))
-    # dense = math.pack_dims(dense, '~x, ~y', channel('_col'))
-
-    # rank = numpy.linalg.matrix_rank(dense+1)
-    # print("rank: ", rank)
-    # inv = numpy.linalg.inv(dense)
-    # unity = inv @ dense
+    rank = numpy.linalg.matrix_rank(dense_edit_numpy)
+    print("rank: ", rank)
+    # inv = numpy.linalg.inv(dense_numpy)
+    # unity = inv @ dense_numpy
     # inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
-    solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution))
-    div = div - field.mean(div)             # sich das nochmal erklären lassen
-    pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+
+    pressure_numpy = scipy.linalg.solve(dense_edit_numpy, div_numpy)
+    print("error numpy: ", math.mean(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
+    print("error numpy orig mat: ", math.mean(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
+    print("error numpy orig mat max: ", math.max(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
+    pressure = math.reshaped_tensor(pressure_numpy, [velocity.shape.spatial])
+    pressure = dummy.with_values(pressure)
+
+    # solve = copy_with(solve, x0=dummy)
+    # pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+
     test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
-    print("press:  ", math.mean(math.abs(pressure.values)))
-    print("div: ",  math.mean(math.abs(div.values)))
-    print("error: ",  math.mean(math.abs(test.values - div.values)))
+    # print("press:  ", math.mean(math.abs(pressure.values)))
+    # print("div: ",  math.mean(math.abs(div.values)))
+    print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
+    print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
 
     # from phi import vis
     # vis.plot(pressure.with_values(test), title='test')
