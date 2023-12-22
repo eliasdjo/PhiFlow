@@ -298,14 +298,18 @@ class TestRun:
         vel_data.append(velocity)
         press_data.append(pressure)
 
-        velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('scipy-GMres', 1e-6, 1e-6))
 
-        vis.plot(velocity, pressure, title=f'vel and press')
-        vis.show()
-        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        vis.show()
-        vis.plot(field.divergence(velocity, order=2), title=f'div')
-        vis.show()
+        for i in range(5):
+            velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('scipy-direct', 1e-6, 1e-6))
+
+            vis.plot(velocity, pressure, title=f'vel and press {i}')
+            vis.show()
+            vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
+            vis.show()
+            div = field.divergence(velocity, order=4)
+            vis.plot(div, title=f'div {i}')
+            vis.show()
+            print(f"max div {i}: ", math.max(math.abs(div.values)))
 
         # solver_string = 'scipy-direct'
         # for i in range(10):
