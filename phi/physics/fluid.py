@@ -90,8 +90,8 @@ def make_incompressible2(velocity: GridType,
 
 
     div = divergence(velocity, order=order)
-    # input_div_mean = field.mean(div)
-    input_div_mean = 0
+    input_div_mean = field.mean(div)
+    # input_div_mean = 0
     div = div - input_div_mean            # sich das nochmal erklären lassen
 
 
@@ -102,13 +102,13 @@ def make_incompressible2(velocity: GridType,
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
 
     dense_orig = math.dense(m)
-    # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual]) + 1
     dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
 
-    dense_edit_numpy = numpy.copy(dense_orig_numpy)
-    z = numpy.zeros(dense_edit_numpy[0].size)
-    z[55] = 1
-    dense_edit_numpy[55] = z
+    # dense_edit_numpy = numpy.copy(dense_orig_numpy)
+    dense_edit_numpy = numpy.copy(dense_orig_numpy) + 1
+    # z = numpy.zeros(dense_edit_numpy[0].size)
+    # z[55] = 1
+    # dense_edit_numpy[55] = z
 
     div_numpy = math.reshaped_numpy(div.values, [spatial])
 
@@ -121,6 +121,7 @@ def make_incompressible2(velocity: GridType,
 
     pressure_numpy = scipy.linalg.solve(dense_edit_numpy, div_numpy)
     print("error numpy: ", math.mean(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
+    print("error numpy max: ", math.max(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
     print("error numpy orig mat: ", math.mean(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
     print("error numpy orig mat max: ", math.max(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
     pressure = math.reshaped_tensor(pressure_numpy, [velocity.shape.spatial])

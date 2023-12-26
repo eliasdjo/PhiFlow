@@ -189,7 +189,7 @@ def spatial_gradient(field: CenteredGrid,
 def get_stencils(order, differentiation_order, implicit_order=0, one_sided=False, left_border_one_sided=False, staggered=False, # ToDo ed raus in externe funktion mit param gridtype order impl dann aufruf mit with math.NUMPY
                  output_boundary_valid=False, input_boundary_valid=False):
 
-        extend = int(math.ceil((order - implicit_order) / 2))
+        extend = int(math.ceil((order - implicit_order) / 2)) + int((differentiation_order - 1) / 2)
         rhs_extend = int(math.ceil(implicit_order / 2))
 
         shifts = [*range(-extend, extend + 1)]
@@ -201,7 +201,7 @@ def get_stencils(order, differentiation_order, implicit_order=0, one_sided=False
             for i in range(1, max_extend + 1):
                 off = max(0, extend - max_extend + i)  # non defining boundary
                 off_rhs = max(0, rhs_extend - max_extend + i + (not output_boundary_valid and staggered))
-                n_shifts = [*range(-extend + off, extend + 1 + off + off_rhs)]
+                n_shifts = [*range(-extend + off, extend + 1 + off + off_rhs + (differentiation_order % 2 == 0))]
                 rhs_n_shifts = [*range(-rhs_extend + off_rhs, rhs_extend + 1)] if implicit_order else []
 
                 if staggered:
