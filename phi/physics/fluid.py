@@ -100,41 +100,42 @@ def make_incompressible2(velocity: GridType,
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
     m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
                                        auxiliary_args='hard_bcs, active, order, implicit', order=order)
-
-    dense_orig = math.dense(m)
-    dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
-
+    dense_orig = math.dense(m) + 1
+    # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
+    #
     # dense_edit_numpy = numpy.copy(dense_orig_numpy)
-    dense_edit_numpy = numpy.copy(dense_orig_numpy) + 1
+    # dense_edit_numpy = numpy.copy(dense_orig_numpy) + 1
     # z = numpy.zeros(dense_edit_numpy[0].size)
     # z[55] = 1
-    # dense_edit_numpy[55] = z
+    # dense_edit_numpy[55] += 1
 
-    div_numpy = math.reshaped_numpy(div.values, [spatial])
+    # div_numpy = math.reshaped_numpy(div.values, [spatial])
 
-    rank = numpy.linalg.matrix_rank(dense_edit_numpy)
-    print("rank: ", rank)
+    # rank = numpy.linalg.matrix_rank(dense_edit_numpy)
+    # print("rank: ", rank)
     # inv = numpy.linalg.inv(dense_numpy)
     # unity = inv @ dense_numpy
     # inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
 
 
-    pressure_numpy = scipy.linalg.solve(dense_edit_numpy, div_numpy)
-    print("error numpy: ", math.mean(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
-    print("error numpy max: ", math.max(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
-    print("error numpy orig mat: ", math.mean(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
-    print("error numpy orig mat max: ", math.max(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
-    pressure = math.reshaped_tensor(pressure_numpy, [velocity.shape.spatial])
-    pressure = dummy.with_values(pressure)
+    # pressure_numpy = scipy.linalg.solve(dense_edit_numpy, div_numpy)
+    # print("error numpy: ", math.mean(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
+    # print("error numpy max: ", math.max(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
+    # print("error numpy orig mat: ", math.mean(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
+    # print("error numpy orig mat max: ", math.max(math.abs((dense_orig_numpy @ pressure_numpy) - div_numpy)))
+    # pressure = math.reshaped_tensor(pressure_numpy, [velocity.shape.spatial])
+    # pressure = dummy.with_values(pressure)
 
-    # solve = copy_with(solve, x0=dummy)
-    # pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    solve = copy_with(solve, x0=dummy)
+    pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    # pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0),
+    #                              order=order)
 
-    test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
+    # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
     # print("press:  ", math.mean(math.abs(pressure.values)))
     # print("div: ",  math.mean(math.abs(div.values)))
-    print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
-    print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
+    # print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
+    # print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
 
     # from phi import vis
     # vis.plot(pressure.with_values(test), title='test')
@@ -236,9 +237,9 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     #     # laplace = divergence(grad, order=order)
     #     laplace = field.laplace(pressure, order=order, implicit=implicit)
 
-    grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
-    laplace = divergence(grad, order=order)
-    # laplace = field.laplace(pressure, order=order, implicit=implicit)
+    # grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
+    # laplace = divergence(grad, order=order)
+    laplace = field.laplace(pressure, order=order, implicit=implicit)
 
     return laplace
 

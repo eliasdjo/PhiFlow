@@ -184,17 +184,14 @@ class TestRun:
         adv_diff_press = (advect.finite_difference(v, v, order=4))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=4))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
-                                                           channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
     def pt_mid_ord(self, v, p, dt_=None):
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v,
-                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12),
+            fluid.make_incompressible2(v,
+                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10),
                                       order=4)
         p += delta_p / dt_
         return v, p
@@ -248,12 +245,12 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            DOMAIN = dict(bounds=Box['x,y', 0:self.xynum, 0:self.xynum], x=self.xynum, y=self.xynum,
+            DOMAIN = dict(bounds=Box['x,y', -self.xynum/2:self.xynum/2, -self.xynum/2:self.xynum/2], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
                               y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ONE))))
 
-            DOMAIN2 = dict(bounds=Box['x,y', 0:self.xynum, 0:self.xynum], x=self.xynum, y=self.xynum,
+            DOMAIN2 = dict(bounds=Box['x,y', -self.xynum/2:self.xynum/2, -self.xynum/2:self.xynum/2], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
             # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
@@ -265,9 +262,12 @@ class TestRun:
         # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
         # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
 
+        def gauss_glocke(x):
+            return 1/(2*math.pi) * math.exp(-1/(2*100)*(x.vector['x']**2 + x.vector['y']**2))
+
         from functools import partial
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        velocity = velocity.with_values(Noise(velocity.shape, scale=1))
+        # velocity = velocity.with_values(Noise(velocity.shape, scale=15)) * self.gridtype(gauss_glocke, **DOMAIN)
         # velocity *= 1.1
         # velocity *= 0
         # if self.gridtype == CenteredGrid:
@@ -299,13 +299,13 @@ class TestRun:
         press_data.append(pressure)
 
 
-        for i in range(5):
-            velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('scipy-direct', 1e-6, 1e-6))
+        for i in range(1):
+            velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
 
-            # vis.plot(velocity, pressure, title=f'vel and press {i}')
-            # vis.show()
-            # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
-            # vis.show()
+            vis.plot(velocity, pressure, title=f'vel and press {i}')
+            vis.show()
+            vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
+            vis.show()
             div = field.divergence(velocity, order=4)
             vis.plot(div, title=f'div {i}')
             vis.show()
@@ -336,6 +336,13 @@ class TestRun:
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
+                div = field.divergence(velocity, order=4)
+                print(f"div mean: ", math.mean(math.abs(div.values)))
+                print(f"div max: ", math.max(math.abs(div.values)))
+                vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
+                vis.show()
+                vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and y after timestep {i}')
+                vis.show()
 
                 vel_data.append(velocity)
                 press_data.append(pressure)
@@ -541,8 +548,8 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "low", 10, 0.05, 0.01, 0.0003, name="firstliddirvencav2")
-test.run(t_num=10, freq=1, jit_compile=True) # hier kann man jit compile ein / aus schalten
+test = TestRun(0, CenteredGrid, "mid", 50, 0.05, 0.01, 0.0003, name="firstliddirvencav2")
+test.run(t_num=10000, freq=1, jit_compile=True)     # hier kann man jit compile ein / aus schalten
 # test.draw_plots()
 # test.more_plots()
 

@@ -23,20 +23,24 @@ def lhs_matrix(offsets, derivative, lhs_offsets):
     A = taylor_coeff(all_offsets, arange)
     return A
 
+
 def get_coefficients(offsets, derivative, lhs_offsets=[]):
     handle_zero = 0 in lhs_offsets
     if handle_zero:
         lhs_offsets = lhs_offsets.copy()
         zero_index = lhs_offsets.index(0)
         lhs_offsets.remove(0)
-    one = concat([zeros(channel(x=derivative)), ones(channel(x=1)), zeros(channel(x=len(offsets + lhs_offsets) - derivative - 1))], 'x')
+    one = concat([zeros(channel(x=derivative)), ones(channel(x=1)),
+                  zeros(channel(x=len(offsets + lhs_offsets) - derivative - 1))], 'x')
     # ToDo ed switch zero(...) -> phiml.math.expand(0, ...)
     mat = lhs_matrix(offsets, derivative, lhs_offsets)
     np_mat = mat.numpy('x, ~x')
     np_b = one.numpy('x')
     coeff = np.linalg.solve(np_mat, np_b)
     ret = list(coeff)
-    values, lhs_values = ret[:len(ret)-len(lhs_offsets)], ret[len(ret)-len(lhs_offsets):]
+    values, lhs_values = ret[:len(ret) - len(lhs_offsets)], ret[len(ret) - len(lhs_offsets):]
     if handle_zero:
         lhs_values.insert(zero_index, 1)
     return values, lhs_values
+
+
