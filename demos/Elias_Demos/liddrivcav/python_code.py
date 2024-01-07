@@ -8,9 +8,6 @@ import numpy as np
 
 from phi.jax.flow import *
 
-# dt = 0.0015
-# visc = 0.01
-
 math.set_global_precision(64)
 
 
@@ -245,12 +242,12 @@ class TestRun:
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
 
         else:
-            DOMAIN = dict(bounds=Box['x,y', -self.xynum/2:self.xynum/2, -self.xynum/2:self.xynum/2], x=self.xynum, y=self.xynum,
+            DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
                               y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ONE))))
 
-            DOMAIN2 = dict(bounds=Box['x,y', -self.xynum/2:self.xynum/2, -self.xynum/2:self.xynum/2], x=self.xynum, y=self.xynum,
+            DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
             # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
@@ -275,12 +272,12 @@ class TestRun:
         # math.expand(velocity, channel(vector='x,y'))
         pressure = CenteredGrid(0, **DOMAIN2)
 
-        vis.plot(velocity, pressure, title=f'vel and press')
-        vis.show()
-        vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        vis.show()
-        vis.plot(field.divergence(velocity), title=f'div')
-        vis.show()
+        # vis.plot(velocity, pressure, title=f'vel and press')
+        # vis.show()
+        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
+        # vis.show()
+        # vis.plot(field.divergence(velocity), title=f'div')
+        # vis.show()
 
         # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
 
@@ -299,18 +296,18 @@ class TestRun:
         press_data.append(pressure)
 
 
-        for i in range(1):
-            velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
-
-            vis.plot(velocity, pressure, title=f'vel and press {i}')
-            vis.show()
-            vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
-            vis.show()
-            div = field.divergence(velocity, order=4)
-            vis.plot(div, title=f'div {i}')
-            vis.show()
-            print(f"div {i}: ", math.mean(math.abs(div.values)))
-            print(f"max div {i}: ", math.max(math.abs(div.values)))
+        # for i in range(1):
+        #     velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
+        #
+        #     vis.plot(velocity, pressure, title=f'vel and press {i}')
+        #     vis.show()
+        #     vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
+        #     vis.show()
+        #     div = field.divergence(velocity, order=4)
+        #     vis.plot(div, title=f'div {i}')
+        #     vis.show()
+        #     print(f"div {i}: ", math.mean(math.abs(div.values)))
+        #     print(f"max div {i}: ", math.max(math.abs(div.values)))
 
         # solver_string = 'scipy-direct'
         # for i in range(10):
@@ -339,11 +336,11 @@ class TestRun:
                 div = field.divergence(velocity, order=4)
                 print(f"div mean: ", math.mean(math.abs(div.values)))
                 print(f"div max: ", math.max(math.abs(div.values)))
-                vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
-                vis.show()
-                vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and y after timestep {i}')
-                vis.show()
-
+                # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
+                # vis.show()
+                # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and y after timestep {i}')
+                # vis.show()
+                #
                 vel_data.append(velocity)
                 press_data.append(pressure)
 
@@ -362,7 +359,7 @@ class TestRun:
         print()
 
     def draw_plots(self):
-        # os.mkdir(f"plots/{self.name}")
+        os.mkdir(f"plots/{self.name}")
 
         vel_data = field.read(f"data/{self.name}/vel.npz")
         press_data = field.read(f"data/{self.name}/press.npz")
@@ -382,10 +379,10 @@ class TestRun:
             # timestamp = '{:07.4f}'.format(float(t))
             # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
             # vis.close()
-            # f2 = vis.plot(vel[i].vector[0], vel[i].vector[1], title=f'{i}: vel fields')._obj
-            # timestamp = '{:07.4f}'.format(float(t))
-            # vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
-            # vis.close()
+            f2 = vis.plot(vel[i].vector['x'], vel[i].vector['y'], title=f'{i}: vel fields')._obj
+            timestamp = '{:07.4f}'.format(float(t))
+            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
+            vis.close()
             f1 = vis.plot(vel[i], press[i], title=f'{i}: vel_x, press')._obj
             timestamp = '{:07.4f}'.format(float(t))
             vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
@@ -548,9 +545,9 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "mid", 50, 0.05, 0.01, 0.0003, name="firstliddirvencav2")
-test.run(t_num=10000, freq=1, jit_compile=True)     # hier kann man jit compile ein / aus schalten
-# test.draw_plots()
+test = TestRun(0, CenteredGrid, "mid", 24, 0.05, 1, 0.01, name="firstliddirvencav_")
+test.run(t_num=1000, freq=10, jit_compile=True)     # hier kann man jit compile ein / aus schalten
+test.draw_plots()
 # test.more_plots()
 
 # for ord in ["low", "mid", "high"]:
