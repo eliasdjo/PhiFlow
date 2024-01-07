@@ -345,12 +345,6 @@ class TestRun:
                 press_data.append(pressure)
 
             velocity, pressure = timestepper(velocity, pressure)
-            # vis.plot(velocity, title=f'{i} vel')
-            # vis.show()
-            # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'{i} vel')
-            # vis.show()
-            # vis.plot(pressure, title=f'{i} press')
-            # vis.show()
 
         field.write(stack(vel_data, batch('time')), f"data/{self.name}/vel")
         field.write(stack(press_data, batch('time')), f"data/{self.name}/press")
@@ -545,7 +539,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 
 
-test = TestRun(0, CenteredGrid, "mid", 24, 0.05, 1, 0.005, name="firstliddirvencav_")
+test = TestRun(0, CenteredGrid, "mid", 24, 0.05, 1, 0.0001, name="firstliddirvencav_")
 test.run(t_num=1000, freq=10, jit_compile=True)     # hier kann man jit compile ein / aus schalten
 test.draw_plots()
 # test.more_plots()
