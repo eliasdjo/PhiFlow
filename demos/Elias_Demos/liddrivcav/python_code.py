@@ -162,9 +162,6 @@ class TestRun:
         adv_diff_press = (advect.finite_difference(v, v, order=6))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=6, gradient_extrapolation=extrapolation.ZERO)
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
-                                                           channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=None):
@@ -188,7 +185,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible2(v,
-                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10),
+                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12),
                                       order=4)
         p += delta_p / dt_
         return v, p
@@ -204,11 +201,11 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12)) # "scipy-GMres" wirft fehler "biCG-stab(2)" geht
+            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12)) # "scipy-GMres" wirft fehler "biCG-stab(2)" geht
         p += delta_p / dt_
         return v, p
 
-    def run(self, jit_compile=True, t_num=0, freq=100):
+    def run(self, jit_compile=True, t_num=0, freq=100, eps=0):
         print(f"run {self.name}:")
 
         while(True):
@@ -227,16 +224,8 @@ class TestRun:
             self.t_num = t_num
 
         if self.order == 'phi':
-            # INFLOW_BC = extrapolation.combine_by_direction(normal=1, tangential=0)
-            #
-            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-            #               extrapolation=extrapolation.combine_sides(x=(INFLOW_BC, extrapolation.BOUNDARY), y=0))
-            #
-            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-            #                extrapolation=extrapolation.combine_sides(x=(extrapolation.SYMMETRIC, extrapolation.ZERO), y=extrapolation.BOUNDARY))
-
             DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-                          extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=0))
+                  extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=0))
 
             DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
@@ -250,53 +239,19 @@ class TestRun:
             DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
 
-            # DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-            #               extrapolation=extrapolation.PERIODIC)
-            #
-            # DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-            #                extrapolation=extrapolation.PERIODIC)
 
-        # DOMAIN = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
-        # DOMAIN2 = dict(bounds=Box['x,y', 0:100, 0:100], x=50, y=20, extrapolation=extrapolation.PERIODIC)
-
-        def gauss_glocke(x):
-            return 1/(2*math.pi) * math.exp(-1/(2*100)*(x.vector['x']**2 + x.vector['y']**2))
-
-        from functools import partial
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        # velocity = velocity.with_values(Noise(velocity.shape, scale=15)) * self.gridtype(gauss_glocke, **DOMAIN)
-        # velocity *= 1.1
-        # velocity *= 0
-        # if self.gridtype == CenteredGrid:
-        #     velocity = math.expand(velocity, channel(vector='x,y'))
-        # math.expand(velocity, channel(vector='x,y'))
         pressure = CenteredGrid(0, **DOMAIN2)
 
-        # vis.plot(velocity, pressure, title=f'vel and press')
-        # vis.show()
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        # vis.show()
-        # vis.plot(field.divergence(velocity), title=f'div')
-        # vis.show()
-
-        # velocity, pressure, solveinfo = fluid.make_incompressible(velocity, scheme=Scheme(4), solve=math.Solve('GMRES', 1e-5, 1e-5))
-
-        vel_data = [velocity]
-        press_data = [pressure]
+        field.write(velocity, f"data/{self.name}/vel_{0}")
+        field.write(pressure, f"data/{self.name}/press_{0}")
+        print(f"timestep: {0} of {self.t_num}")
+        div = field.divergence(velocity, order=4)
+        print(f"div mean: ", math.mean(math.abs(div.values)))
+        print(f"div max: ", math.max(math.abs(div.values)))
 
 
-        # vals_x = velocity.values.vector['x']
-        # t = math.scatter(math.zeros(vals_x.shape.only('x')),
-        #              tensor([5], instance('points')),
-        #              tensor([1], instance('points')))
-        # vals_x = vals_x + t
-        # velocity = velocity.with_values(stack([vals_x, velocity.values.vector['y']], channel(vector='x,y')))
-
-        vel_data.append(velocity)
-        press_data.append(pressure)
-
-
-        # for i in range(1):
+        # for i in range(3):
         #     velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
         #
         #     vis.plot(velocity, pressure, title=f'vel and press {i}')
@@ -309,78 +264,70 @@ class TestRun:
         #     print(f"div {i}: ", math.mean(math.abs(div.values)))
         #     print(f"max div {i}: ", math.max(math.abs(div.values)))
 
-        # solver_string = 'scipy-direct'
-        # for i in range(10):
-        #     print(f'mk inc {i}')
-        #     velocity, pressure = fluid.make_incompressible(velocity, order=2, solve=math.Solve(solver_string, 1e-5, 1e-5))
-        #     vis.plot(velocity, pressure, title=f'vel and press after intital mk incompressible {i}')
-        #     vis.show()
-        #     vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y')
-        #     vis.show()
-
-
-        # vis.plot(solveinfo.residual, title=f'residual')
-        # vis.show()
-        # vis.plot(pressure, title=f'pressure')
-        # vis.show()
-        # vis.plot(velocity.vector[0], velocity.vector[1], title=f'vel x and vel y')
-        # vis.show()
-
-        # velocity = StaggeredGrid(tgv_velocity, **DOMAIN)
-        # pressure = CenteredGrid(tgv_pressure, **DOMAIN2)
-
-        for i in range(self.t_num):
+        for i in range(1, self.t_num+1):
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
                 div = field.divergence(velocity, order=4)
                 print(f"div mean: ", math.mean(math.abs(div.values)))
                 print(f"div max: ", math.max(math.abs(div.values)))
+
                 # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
                 # vis.show()
                 # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and y after timestep {i}')
                 # vis.show()
-                #
-                vel_data.append(velocity)
-                press_data.append(pressure)
 
-            velocity, pressure = timestepper(velocity, pressure)
+                velocity_new, pressure_new = timestepper(velocity, pressure)
+                # velocity_new, pressure_new = velocity, pressure
 
-        field.write(stack(vel_data, batch('time')), f"data/{self.name}/vel")
-        field.write(stack(press_data, batch('time')), f"data/{self.name}/press")
-        np.savez(f"data/{self.name}/data", t_num=self.t_num, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad)
+                max = math.max(math.abs(velocity_new.values - velocity.values)) / (self.dt * math.max(math.abs(velocity_new.values)))
+                max = max.numpy().max()
+
+                velocity, pressure = velocity_new, pressure_new
+                field.write(velocity, f"data/{self.name}/vel_{i}")
+                field.write(pressure, f"data/{self.name}/press_{i}")
+
+                print("steady state degree: ", max)
+                if max < eps:
+                    break
+
+            else:
+                velocity, pressure = timestepper(velocity, pressure)
+
+
+
+        np.savez(f"data/{self.name}/data", t_num=i, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad)
 
         print()
 
     def draw_plots(self):
         os.mkdir(f"plots/{self.name}")
 
-        vel_data = field.read(f"data/{self.name}/vel.npz")
-        press_data = field.read(f"data/{self.name}/press.npz")
         data = np.load(f"data/{self.name}/data.npz")
-
         t_num = data['t_num'].item()
         dt = data['dt'].item()
         visc = data['visc'].item()
         freq = data['freq'].item()
+        vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num, freq)]
+        press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num, freq)]
 
-        vel = unstack(vel_data, 'time')
-        press = unstack(press_data, 'time')
-
-        for i in range(int(t_num / freq)+1):
+        for i in range(int(t_num / freq)):
             t = tensor(i * freq * dt)
             # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
             # timestamp = '{:07.4f}'.format(float(t))
             # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
             # vis.close()
-            f2 = vis.plot(vel[i].vector['x'], vel[i].vector['y'], title=f'{i}: vel fields')._obj
             timestamp = '{:07.4f}'.format(float(t))
-            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f2)
+            f1 = vis.plot(vel_data[i], title=f'{i}: vel')._obj
+            vis.savefig(f"plots/{self.name}/v_{timestamp}.jpg", f1)
             vis.close()
-            f1 = vis.plot(vel[i], press[i], title=f'{i}: vel_x, press')._obj
-            timestamp = '{:07.4f}'.format(float(t))
-            vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
+            f2 = vis.plot(press_data[i], title=f'{i}: press')._obj
+            vis.savefig(f"plots/{self.name}/p_{timestamp}.jpg", f2)
             vis.close()
+            f3 = vis.plot(vel_data[i].vector['x'], vel_data[i].vector['y'], title=f'{i}: vel fields')._obj
+            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f3)
+            vis.close()
+
 
     def more_plots(self):
         # os.mkdir(f"plots/{self.name}")
@@ -537,12 +484,17 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
     plt_lines(convergence_lines, title + " convergence course")
 
+for re in [1, 100, 1000]:
+    for ord in ['low', 'mid', 'high']:
+        for res, eps in [(16, 1e-8), (32, 1e-10)]:
+            if ord == 'low' and re == 1:
+                pass
+            else:
+                test = TestRun(0, CenteredGrid, ord, res, 0.05, re, 0.00001, name=f"paperldc_re{re}_ord{ord}_res{res}")
+                import sys
+                test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
+                test.draw_plots()
 
-
-test = TestRun(0, CenteredGrid, "mid", 24, 0.05, 1, 0.0001, name="firstliddirvencav_")
-test.run(t_num=1000, freq=10, jit_compile=True)     # hier kann man jit compile ein / aus schalten
-test.draw_plots()
-# test.more_plots()
 
 # for ord in ["low", "mid", "high"]:
 #     for res in [8, 15, 30, 60, 120]:
