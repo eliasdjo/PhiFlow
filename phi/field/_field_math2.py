@@ -258,7 +258,7 @@ def get_stencils(order, differentiation_order, input_ext=None, implicit_order=0,
                         n_shifts.insert(0, n_shifts[0] - 1)
                         bc = None
                     else:
-                        bc = coefficient_shifts[0] - 0.5, bc_deriv, bc_value
+                        bc = coefficient_shifts[0] - 1, bc_deriv, bc_value
 
                 n_values, n_values_rhs, n_affin_lin = get_coefficients(coefficient_shifts, differentiation_order,
                                                                        rhs_n_shifts, bc)

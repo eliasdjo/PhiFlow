@@ -109,44 +109,10 @@ class TestRun:
 
         return v_p1, p_p1
 
-
-    # def adp_high_ord(self, v, p):
-    #
-    #     adv_diff_press = (advect.finite_difference(v, v, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
-    #
-    #     # vis.plot(adv_diff_press.vector['x'], adv_diff_press.vector['y'], title=f'adv')
-    #     # vis.show()
-    #
-    #     diff = (diffuse.finite_difference(v, self.vis, self.dt, scheme=Scheme(6, Solve('GMRES', 1e-5, 1e-5))) - v) / self.dt
-    #
-    #     # vis.plot(diff.vector['x'], diff.vector['y'], title=f'diff')
-    #     # vis.show()
-    #
-    #     adv_diff_press += diff
-    #     press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4), gradient_extrapolation=extrapolation.combine_sides(
-    #         x=extrapolation.PERIODIC,
-    #         y=extrapolation.combine_by_direction(extrapolation.ANTIREFLECT, extrapolation.ANTISYMMETRIC)))
-    #     # press = field.spatial_gradient(p, type=self.gridtype, scheme=Scheme(4),
-    #     #                                gradient_extrapolation=extrapolation.PERIODIC)
-    #
-    #     # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
-    #     # vis.show()
-    #
-    #     # adv_diff_press -= press
-    #     press = -press.with_values(stack([math.ones(press.vector['x'].values.shape), math.zeros(press.vector['y'].values.shape)], channel(vector='x,y'))*self.p_grad)
-    #
-    #     # vis.plot(press.vector['x'], press.vector['y'], title=f'press')
-    #     # vis.show()
-    #     adv_diff_press -= press
-    #     return adv_diff_press
-
     def adp_high_ord_impl(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
-        adv_diff_press += adv_diff_press.with_values(stack([math.ones(adv_diff_press.vector['x'].values.shape),
-                                                            math.zeros(adv_diff_press.vector['y'].values.shape)],
-                                                           channel(vector='x,y')) * self.p_grad)
         return adv_diff_press
 
     def pt_high_ord_impl(self, v, p, dt_=None):
@@ -154,7 +120,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible(v, order=6,
-                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
+                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10))
         p += delta_p / dt_
         return v, p
 
@@ -169,7 +135,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible(v, order=4,
-                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12))
+                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10))
         p += delta_p / dt_
         return v, p
 
@@ -185,7 +151,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible2(v,
-                                      solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12),
+                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10),
                                       order=4)
         p += delta_p / dt_
         return v, p
@@ -201,7 +167,7 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-12, 1e-12)) # "scipy-GMres" wirft fehler "biCG-stab(2)" geht
+            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10)) # "scipy-GMres" wirft fehler "biCG-stab(2)" geht
         p += delta_p / dt_
         return v, p
 
@@ -484,14 +450,13 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
     plt_lines(convergence_lines, title + " convergence course")
 
-for re in [1, 100, 1000]:
+# for re in [1, 100, 1000]:
+for re in [1000, 100, 1]:
     for ord in ['low', 'mid', 'high']:
-        for res, eps in [(16, 1e-8), (32, 1e-10)]:
-            if ord == 'low' and re == 1:
-                pass
-            else:
-                test = TestRun(0, CenteredGrid, ord, res, 0.05, re, 0.00001, name=f"paperldc_re{re}_ord{ord}_res{res}")
-                import sys
+    # for ord in ['mid']:
+        for res in [15, 31, 47]:
+                eps = 1e-8
+                test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
                 test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
                 test.draw_plots()
 

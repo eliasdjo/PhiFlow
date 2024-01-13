@@ -123,7 +123,7 @@ class Grid(SampledField, metaclass=deprecated_field_class('Grid')):
 
     @property
     def dx(self) -> Tensor:
-        return self.bounds.size / self.resolution
+        return self.bounds.size / (self.resolution+1)
 
     def __repr__(self):
         if self._values is not None:
