@@ -273,11 +273,15 @@ class TestRun:
     def draw_plots(self):
         os.mkdir(f"plots/{self.name}")
 
-        data = np.load(f"data/{self.name}/data.npz")
-        t_num = data['t_num'].item()
-        dt = data['dt'].item()
-        visc = data['visc'].item()
-        freq = data['freq'].item()
+        # data = np.load(f"data/{self.name}/data.npz")
+        # t_num = data['t_num'].item()
+        # dt = data['dt'].item()
+        # visc = data['visc'].item()
+        # freq = data['freq'].item()
+        t_num = 69000
+        dt = 1
+        visc = 0
+        freq = 1000
         vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num, freq)]
         press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num, freq)]
 
@@ -455,17 +459,17 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
     plt_lines(convergence_lines, title + " convergence course")
 
 # for re in [1, 100, 1000]:
-for re in [1000, 100, 1]:
-    for ord in ['low', 'mid', 'high']:
+for re in [100, 1]:
+    for ord in ['mid', 'high']:
     # for ord in ['mid']:
-        for res in [15, 31, 47]:
-            if ord == 'low' or (ord == 'mid' and res in [15, 31]):
-                pass
-            else:
-                eps = 1e-8
-                test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
-                test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
-                test.draw_plots()
+        for res in [15, 31]:
+    #         if ord == 'low' or (ord == 'mid' and res in [15, 31]):
+    #             pass
+    #         else:
+            eps = 1e-8
+            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
+            test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
+            # test.draw_plots()
 
 
 # for ord in ["low", "mid", "high"]:
