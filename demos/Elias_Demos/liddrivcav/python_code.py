@@ -213,8 +213,10 @@ class TestRun:
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
         div = field.divergence(velocity, order=4)
-        print(f"div mean: ", math.mean(math.abs(div.values)))
-        print(f"div max: ", math.max(math.abs(div.values)))
+        div_mean = math.mean(math.abs(div.values)).numpy().max()
+        print(f"div mean: ", div_mean)
+        div_max = math.max(math.abs(div.values)).numpy().max()
+        print(f"div max: ", div_max)
 
 
         # for i in range(3):
@@ -235,8 +237,10 @@ class TestRun:
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
                 div = field.divergence(velocity, order=4)
-                print(f"div mean: ", math.mean(math.abs(div.values)))
-                print(f"div max: ", math.max(math.abs(div.values)))
+                div_mean = math.mean(math.abs(div.values))
+                print(f"div mean: ", div_mean)
+                div_max = math.max(math.abs(div.values))
+                print(f"div max: ", div_max)
 
                 # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
                 # vis.show()
@@ -262,7 +266,7 @@ class TestRun:
 
 
 
-        np.savez(f"data/{self.name}/data", t_num=i, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad)
+        np.savez(f"data/{self.name}/data", t_num=i, dt=self.dt, visc=self.vis, freq=freq, p_grad=self.p_grad, max_steady_state_diff=max, div_mean=div_mean, div_max=div_max)
 
         print()
 
@@ -455,6 +459,9 @@ for re in [1000, 100, 1]:
     for ord in ['low', 'mid', 'high']:
     # for ord in ['mid']:
         for res in [15, 31, 47]:
+            if ord == 'low' or (ord == 'mid' and res in [15, 31]):
+                pass
+            else:
                 eps = 1e-8
                 test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
                 test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
