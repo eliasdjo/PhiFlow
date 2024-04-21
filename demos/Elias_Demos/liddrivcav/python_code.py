@@ -510,7 +510,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 eps = 1e-6
 test = TestRun(0, CenteredGrid, "mid", 31, 0.05, 1 / 100, 0.001, name=f"neuertag_re{100}_ord{ord}_res{31}")
-test.run(t_num=200000, freq=1000, jit_compile=False, eps=eps)
+test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
 test.draw_plots()
 
 # re, ord, res = 100, 'low', 15
