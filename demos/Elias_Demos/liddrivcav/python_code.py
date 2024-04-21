@@ -76,35 +76,43 @@ class TestRun:
         rhs_1 = self.adv_diff_press(v_1, p_1)
         v_2_old = velocity + (dt / 2) * rhs_1
         v_2, p_2 = self.pressure_treatment(v_2_old, p_1, dt / 2)
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 1')
+        # vis.plot(v_2_old.vector['x'], v_2_old.vector['y'], title=f'vel 1 old')
         # vis.show()
-        # vis.plot(pressure, title=f'press 1')
+        # vis.plot(v_2.vector['x'], v_2.vector['y'], title=f'vel 1')
+        # vis.show()
+        # vis.plot(p_2, title=f'press 1')
         # vis.show()
 
 
         rhs_2 = self.adv_diff_press(v_2, p_2)
         v_3_old = velocity + (dt / 2) * rhs_2
         v_3, p_3 = self.pressure_treatment(v_3_old, p_2, dt / 2)
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 2')
+        # vis.plot(v_3_old.vector['x'], v_3_old.vector['y'], title=f'vel 2 old')
         # vis.show()
-        # vis.plot(pressure, title=f'press 2')
+        # vis.plot(v_3.vector['x'], v_3.vector['y'], title=f'vel 2')
+        # vis.show()
+        # vis.plot(p_3, title=f'press 1')
         # vis.show()
 
         rhs_3 = self.adv_diff_press(v_3, p_3)
         v_4_old = velocity + dt * rhs_2
         v_4, p_4 = self.pressure_treatment(v_4_old, p_3, dt)
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 3')
+        # vis.plot(v_4_old.vector['x'], v_4_old.vector['y'], title=f'vel 3 old')
         # vis.show()
-        # vis.plot(pressure, title=f'press 3')
+        # vis.plot(v_4.vector['x'], v_4.vector['y'], title=f'vel 3')
+        # vis.show()
+        # vis.plot(p_4, title=f'press 1')
         # vis.show()
 
         rhs_4 = self.adv_diff_press(v_4, p_4)
         v_p1_old = velocity + (dt / 6) * (rhs_1 + 2 * rhs_2 + 2 * rhs_3 + rhs_4)
         p_p1_old = (1 / 6) * (p_1 + 2 * p_2 + 2 * p_3 + p_4)
         v_p1, p_p1 = self.pressure_treatment(v_p1_old, p_p1_old, dt)
-        # vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel 4')
+        # vis.plot(p_p1_old.vector['x'], p_p1_old.vector['y'], title=f'vel 4 old')
         # vis.show()
-        # vis.plot(pressure, title=f'press 4')
+        # vis.plot(v_p1.vector['x'], v_p1.vector['y'], title=f'vel 4')
+        # vis.show()
+        # vis.plot(p_p1, title=f'press 1')
         # vis.show()
 
         return v_p1, p_p1
@@ -126,7 +134,10 @@ class TestRun:
 
     def adp_high_ord(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, order=6))
-        adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6))
+        diff = (diffuse.finite_difference(v, self.vis, order=6))
+        adv_diff_press += diff
+        # vis.plot(diff.vector['x'], diff.vector['y'], title=f'vel 4')
+        # vis.show()
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=6, gradient_extrapolation=extrapolation.ZERO)
         return adv_diff_press
 
@@ -134,15 +145,19 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v, order=4,
+            fluid.make_incompressible2(v, order=4,
                                       solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10))
         p += delta_p / dt_
         return v, p
 
 
     def adp_mid_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, order=4))
-        adv_diff_press += (diffuse.finite_difference(v, self.vis, order=4))
+        adv = (advect.finite_difference(v, v, order=4))
+        adv_diff_press = adv
+        diff = (diffuse.finite_difference(v, self.vis, order=4))
+        adv_diff_press += diff
+        # vis.plot(adv.vector['x'], adv.vector['y'], title=f'vel 4')
+        # vis.show()
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
         return adv_diff_press
 
@@ -158,8 +173,11 @@ class TestRun:
 
 
     def adp_low_ord(self, v, p):
-        adv_diff_press = advect.finite_difference(v, v, self.dt)
-        adv_diff_press += (diffuse.finite_difference(v, self.vis, self.dt))
+        adv_diff_press = advect.finite_difference(v, v)
+        diff = (diffuse.finite_difference(v, self.vis, order=2))
+        adv_diff_press += diff
+        # vis.plot(diff.vector['x'], diff.vector['y'], title=f'vel 4')
+        # vis.show()
         adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, gradient_extrapolation=extrapolation.ZERO)
         return adv_diff_press
 
@@ -200,7 +218,7 @@ class TestRun:
             DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                           extrapolation=extrapolation.combine_sides(
                               x=extrapolation.ZERO,
-                              y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ONE))))
+                              y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ConstantExtrapolation(-1)))))
 
             DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                            extrapolation=extrapolation.ZERO_GRADIENT)
@@ -271,40 +289,50 @@ class TestRun:
         print()
 
     def draw_plots(self):
-        os.mkdir(f"plots/{self.name}")
+        # os.mkdir(f"plots/{self.name}")
 
-        # data = np.load(f"data/{self.name}/data.npz")
-        # t_num = data['t_num'].item()
-        # dt = data['dt'].item()
-        # visc = data['visc'].item()
-        # freq = data['freq'].item()
-        t_num = 69000
-        dt = 1
-        visc = 0
-        freq = 1000
+        data = np.load(f"data/{self.name}/data.npz")
+        t_num = data['t_num'].item()
+        dt = data['dt'].item()
+        visc = data['visc'].item()
+        freq = data['freq'].item()
+        # t_num = 69000
+        # dt = 1
+        # visc = 0
+        # freq = 1000
         vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num, freq)]
         press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num, freq)]
 
-        for i in range(int(t_num / freq)):
-            t = tensor(i * freq * dt)
-            # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
-            # timestamp = '{:07.4f}'.format(float(t))
-            # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
-            # vis.close()
-            timestamp = '{:07.4f}'.format(float(t))
-            f1 = vis.plot(vel_data[i], title=f'{i}: vel')._obj
-            vis.savefig(f"plots/{self.name}/v_{timestamp}.jpg", f1)
-            vis.close()
-            f2 = vis.plot(press_data[i], title=f'{i}: press')._obj
-            vis.savefig(f"plots/{self.name}/p_{timestamp}.jpg", f2)
-            vis.close()
-            f3 = vis.plot(vel_data[i].vector['x'], vel_data[i].vector['y'], title=f'{i}: vel fields')._obj
-            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f3)
-            vis.close()
+        max_steady_state_diff = data['max_steady_state_diff'].item()
+        div_mean = data['div_mean'].item()
+        div_max = data['div_max'].item()
+        print(f"{self.name}: \t mssd: {max_steady_state_diff}, \t dmean: {div_mean}, \t dmax: {div_max}")
+        final_vel = vel_data[-1].values.numpy('x,y,vector')
+        mid_cell = int(final_vel[0,:,0].size/2)
+        # print(f"{self.name}: \t 0.5,0.5_x: {final_vel[mid_cell][mid_cell][0]}, \t 0.5,0.5_y: {final_vel[mid_cell][mid_cell][1]}")
+        # print(f"{self.name}: \t x_vel_max: {np.max(final_vel[mid_cell,:,0])}, \t y_vel_max:  {np.max(final_vel[:,mid_cell,1])}, \t y_vel_min:  {np.min(final_vel[:,mid_cell,1])}")
+
+
+        # for i in range(int(t_num / freq)):
+        #     t = tensor(i * freq * dt)
+        #     # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
+        #     # timestamp = '{:07.4f}'.format(float(t))
+        #     # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
+        #     # vis.close()
+        #     timestamp = '{:07.4f}'.format(float(t))
+        #     f1 = vis.plot(vel_data[i], title=f'{i}: vel')._obj
+        #     vis.savefig(f"plots/{self.name}/v_{timestamp}.jpg", f1)
+        #     vis.close()
+        #     f2 = vis.plot(press_data[i], title=f'{i}: press')._obj
+        #     vis.savefig(f"plots/{self.name}/p_{timestamp}.jpg", f2)
+        #     vis.close()
+        #     f3 = vis.plot(vel_data[i].vector['x'], vel_data[i].vector['y'], title=f'{i}: vel fields')._obj
+        #     vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f3)
+        #     vis.close()
 
 
     def more_plots(self):
-        # os.mkdir(f"plots/{self.name}")
+        os.mkdir(f"plots/{self.name}")
 
         vel_data = field.read(f"data/{self.name}/vel.npz")
         press_data = field.read(f"data/{self.name}/press.npz")
@@ -458,19 +486,37 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
     plt_lines(convergence_lines, title + " convergence course")
 
-# for re in [1, 100, 1000]:
-for re in [100, 1]:
-    for ord in ['mid', 'high']:
-    # for ord in ['mid']:
-        for res in [15, 31]:
-    #         if ord == 'low' or (ord == 'mid' and res in [15, 31]):
-    #             pass
-    #         else:
-            eps = 1e-8
-            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
-            test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
-            # test.draw_plots()
+# for re in [100, 1000]:
+# # for re in [100]:
+#     for ord in ['mid', 'low', 'high']:
+#     # for ord in ['mid']:
+#         for res in [15, 31]:
+#         # for res in [15]:
+#         #     if ord == 'mid' and re == 100 and res == 15:
+#         #         pass
+#         #     else:
+#             eps = 1e-6
+#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldclast_re{re}_ord{ord}_res{res}")
+#             # test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
+#             test.draw_plots()
+#
+# for re in [100, 1000]:
+#     for ord in ['mid', 'low', 'high']:
+#         res = 47
+#         eps = 1e-6
+#         test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldclast_re{re}_ord{ord}_res{res}")
+#         # test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
+#         test.draw_plots()
 
+eps = 1e-6
+test = TestRun(0, CenteredGrid, "mid", 31, 0.05, 1 / 100, 0.001, name=f"neuertag_re{100}_ord{ord}_res{31}")
+test.run(t_num=200000, freq=1000, jit_compile=False, eps=eps)
+test.draw_plots()
+
+# re, ord, res = 100, 'low', 15
+# test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
+# # test.run(t_num=200000, freq=1000, jit_compile=False, eps=eps)
+# test.draw_plots()
 
 # for ord in ["low", "mid", "high"]:
 #     for res in [8, 15, 30, 60, 120]:

@@ -82,7 +82,7 @@ def laplace(field: GridType,
         fields = [field]
 
     laplace_ext = extrapolation.map(
-        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT else ext,
+        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ConstantExtrapolation(-1) else ext,
         field.extrapolation)
 
     result = []
@@ -156,7 +156,7 @@ def spatial_gradient(field: CenteredGrid,
         # gradient_extrapolation = field.extrapolation
 
         def grad_ext_map(ext):
-            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE:
+            if ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ONE or ext == extrapolation.ConstantExtrapolation(-1):
                 return extrapolation.ZERO
             else:
                 return ext
@@ -215,6 +215,10 @@ def get_stencils(order, differentiation_order, input_ext=None, implicit_order=0,
         bc_affin_lin = True
         bc_deriv = 0
         bc_value = 0
+    elif input_ext == extrapolation.ConstantExtrapolation(-1):
+        bc_affin_lin = True
+        bc_deriv = 0
+        bc_value = -1
 
 
     extend = int(math.ceil((order - implicit_order) / 2)) + int((differentiation_order - 1) / 2)
@@ -321,7 +325,7 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
                           extrapolation.ConstantExtrapolation(100),
                           extrapolation.ZERO,
                           extrapolation.ZERO_GRADIENT,
-                          extrapolation.SYMMETRIC, extrapolation.ONE,
+                          extrapolation.SYMMETRIC, extrapolation.ONE, extrapolation.ConstantExtrapolation(-1),
                           extrapolation.ConstantExtrapolation(10000000),
                           ]
     one_sided_exts = [ext for ext in leaf_exts if ext in all_one_sided_exts]
@@ -426,9 +430,9 @@ def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx,
 
         shifted_component = math.shift(padded_component, tuple(needed_shifts_), stack_dim=None, padding=None, dims=dim)
         result_component = (sum([value * shift for value, shift in
-                                 zip(values_, shifted_component)]) / field_dx ** differencing_order)
+                                 zip(values_, shifted_component)]) + affin_lin_) / (field_dx ** differencing_order)
 
-        return result_component + affin_lin_
+        return result_component
 
     result_component = apply_stencil(base_koeff, base_shifts, 0)
     if masks is not None and stencil_tensors is not None:

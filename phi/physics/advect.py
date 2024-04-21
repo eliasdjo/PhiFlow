@@ -116,7 +116,7 @@ def finite_difference(grid: Grid,
         amount = sum(amounts.gradient)
     from phi.math import extrapolation
     new_ext = extrapolation.map(
-        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE else ext,
+        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ConstantExtrapolation(-1) else ext,
         velocity.extrapolation)
     return velocity.with_values(- amount).with_extrapolation(new_ext)
 

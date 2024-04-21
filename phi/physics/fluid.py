@@ -127,12 +127,18 @@ def make_incompressible2(velocity: GridType,
     # pressure = dummy.with_values(pressure)
 
     solve = copy_with(solve, x0=dummy)
-    pressure = math.solve_linear(math.dense(m)+1, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
-    # pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0),
-    #                              order=order)
-
+    # from phiml._troubleshoot import plot_solves
+    # # with plot_solves():
+    # with math.SolveTape() as solves:
+    #     pressure = math.solve_linear(math.dense(m)+1/div.dx.mean, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
+    # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
+    #
+    pressure = math.solve_linear(math.dense(m)+1/div.dx.mean, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    # pressure = pressure - math.mean(pressure.values)
     # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
-    # print("press:  ", math.mean(math.abs(pressure.values)))
+    # print("press mean:  ", math.mean(pressure.values))
+    # print("press sum:  ", math.sum(pressure.values))
     # print("div: ",  math.mean(math.abs(div.values)))
     # print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
     # print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
