@@ -207,21 +207,13 @@ class TestRun:
         if t_num > 0:
             self.t_num = t_num
 
-        if self.order == 'phi':
-            DOMAIN = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-                  extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=0))
+        DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
+                      extrapolation=extrapolation.combine_sides(
+                          x=extrapolation.ZERO,
+                          y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ConstantExtrapolation(-1)))))
 
-            DOMAIN2 = dict(bounds=Box['x,y', 0:0.5, 0:0.5], x=self.xynum, y=self.xynum,
-                           extrapolation=extrapolation.combine_sides(x=extrapolation.PERIODIC, y=extrapolation.BOUNDARY))
-
-        else:
-            DOMAIN = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
-                          extrapolation=extrapolation.combine_sides(
-                              x=extrapolation.ZERO,
-                              y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ConstantExtrapolation(-1)))))
-
-            DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
-                           extrapolation=extrapolation.ZERO_GRADIENT)
+        DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
+                       extrapolation=extrapolation.ZERO_GRADIENT)
 
 
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
@@ -254,11 +246,11 @@ class TestRun:
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
-                div = field.divergence(velocity, order=4)
-                div_mean = math.mean(math.abs(div.values))
-                print(f"div mean: ", div_mean)
-                div_max = math.max(math.abs(div.values))
-                print(f"div max: ", div_max)
+                # div = field.divergence(velocity, order=4)
+                # div_mean = math.mean(math.abs(div.values))
+                # print(f"div mean: ", div_mean)
+                # div_max = math.max(math.abs(div.values))
+                # print(f"div max: ", div_max)
 
                 # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
                 # vis.show()
@@ -266,7 +258,6 @@ class TestRun:
                 # vis.show()
 
                 velocity_new, pressure_new = timestepper(velocity, pressure)
-                # velocity_new, pressure_new = velocity, pressure
 
                 max = math.max(math.abs(velocity_new.values - velocity.values)) / (self.dt * math.max(math.abs(velocity_new.values)))
                 max = max.numpy().max()
@@ -509,45 +500,12 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 #         test.draw_plots()
 
 eps = 1e-6
-test = TestRun(0, CenteredGrid, "mid", 5, 0.05, 1 / 100, 0.001, name=f"neuertag_re{100}_ord{ord}_res{31}")
-test.run(t_num=200000, freq=1000, jit_compile=False, eps=eps)
-test.draw_plots()
 
-# re, ord, res = 100, 'low', 15
-# test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.001, name=f"paperldcfinal_re{re}_ord{ord}_res{res}")
-# # test.run(t_num=200000, freq=1000, jit_compile=False, eps=eps)
-# test.draw_plots()
-
-# for ord in ["low", "mid", "high"]:
-#     for res in [8, 15, 30, 60, 120]:
-#         test = TestRun(0, CenteredGrid, ord, res, 0.05, 0.01, 0.0003,
-#                        name=f"{ord}_Poiseuille_flow_res_{res}_dp0.05_vis_0.01_dt0.0003_2")
-#         test.run(t_num=300000, freq=1000, jit_compile=False)
-#         test.draw_plots()
-#         test.more_plots()
-#
-# # test = TestRun(0, StaggeredGrid, "low", 100, 0.05, 0.01, 0.0003, name="lowPoiseuille_flow_6_re100_dp0.05_vi0.01_dt0.0003")
-# # test.run(t_num=100000, freq=500, jit_compile=True)
-# # test.draw_plots()
-# # test.more_plots()
-#
-
-# overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'Poiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015'],
-#                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.01_dt0.0015', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.01_dt0.0015']],
-#               block_names=['high 4/6',
-#                            'low   2   '],
-#               title='poiseulle - vis=0.01 - press_grad=0.01', folder_name="Poisseuille_flow_6")
-#
-# overview_plot([['Poiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'Poiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005'],
-#                ['lowPoiseuille_flow_6_re10_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re25_dp0.01_vi0.003_dt0.0005', 'lowPoiseuille_flow_6_re50_dp0.01_vi0.003_dt0.0005']],
-#               block_names=['high 4/6',
-#                            'low   2   '],
-#               title='poiseulle - vis=0.003 - press_grad=0.01', folder_name="Poisseuille_flow_6")
-#
-# overview_plot([['Poiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'Poiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003'],
-#                ['lowPoiseuille_flow_6_re10_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re25_dp0.05_vi0.01_dt0.0003', 'lowPoiseuille_flow_6_re50_dp0.05_vi0.01_dt0.0003']],
-#               block_names=['high 4/6',
-#                            'low   2   '],
-#               title='poiseulle - vis=0.01 - press_grad=0.05', folder_name="Poisseuille_flow_6")
+for ord in ["low", "mid", "high"]:
+    for res in [8, 15, 30, 60, 120, 240]:
+        for re in [100, 1000]:
+            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.0003,
+                           name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0003")
+            test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
 
 print('done')

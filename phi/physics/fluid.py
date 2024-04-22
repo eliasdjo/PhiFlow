@@ -91,23 +91,16 @@ def make_incompressible2(velocity: GridType,
 
     div = divergence(velocity, order=order)
     input_div_mean = field.mean(div)
-    # input_div_mean = 0
-    div = div - input_div_mean            # sich das nochmal erklären lassen
-
+    div = div - input_div_mean
 
     pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
 
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
-    m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
-                                       auxiliary_args='hard_bcs, active, order, implicit', order=order)
-    dense_orig = math.dense(m) + 1
+
+    # m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
+    #                                    auxiliary_args='hard_bcs, active, order, implicit', order=order)
+    # dense_orig = math.dense(m) + 1
     # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
-    #
-    # dense_edit_numpy = numpy.copy(dense_orig_numpy)
-    # dense_edit_numpy = numpy.copy(dense_orig_numpy) + 1
-    # z = numpy.zeros(dense_edit_numpy[0].size)
-    # z[55] = 1
-    # dense_edit_numpy[55] += 1
 
     # div_numpy = math.reshaped_numpy(div.values, [spatial])
 
@@ -116,7 +109,6 @@ def make_incompressible2(velocity: GridType,
     # inv = numpy.linalg.inv(dense_numpy)
     # unity = inv @ dense_numpy
     # inv = math.reshaped_tensor(inv, [math.spatial(x=10, y=10), math.dual(x=10, y=10)])
-
 
     # pressure_numpy = scipy.linalg.solve(dense_edit_numpy, div_numpy)
     # print("error numpy: ", math.mean(math.abs((dense_edit_numpy @ pressure_numpy) - div_numpy)))
@@ -128,20 +120,27 @@ def make_incompressible2(velocity: GridType,
 
     solve = copy_with(solve, x0=dummy)
     # from phiml._troubleshoot import plot_solves
-    # # with plot_solves():
-    with math.SolveTape() as solves:
-        pressure = math.solve_linear(m, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order, regulizer=1/div.dx.mean)
-    print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
-    print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
-    #
+    # with plot_solves():
+    # with math.SolveTape() as solves:
+    #     pressure = math.solve_linear(m, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order, regulizer=1/div.dx.mean)
+    # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
+    # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
+
     # pressure = math.solve_linear(math.dense(m)+1/div.dx.mean, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
+    system_is_underdetermined = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    if system_is_underdetermined:
+        regulizer = 1/div.dx.mean
+    else:
+        regulizer = 0
+    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=regulizer)
+
     # pressure = pressure - math.mean(pressure.values)
-    test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
-    print("press mean:  ", math.mean(pressure.values))
-    print("press sum:  ", math.sum(pressure.values))
-    print("div: ",  math.mean(math.abs(div.values)))
-    print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
-    print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
+    # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
+    # print("press mean:  ", math.mean(pressure.values))
+    # print("press sum:  ", math.sum(pressure.values))
+    # print("div: ",  math.mean(math.abs(div.values)))
+    # print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
+    # print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
 
     # from phi import vis
     # vis.plot(pressure.with_values(test), title='test')
