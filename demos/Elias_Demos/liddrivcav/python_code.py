@@ -1,7 +1,7 @@
 """ Streamline Profile
 Simulates a viscous fluid flowing through a horizontal pipe.
 """
-
+import math
 import os
 
 import numpy as np
@@ -279,18 +279,28 @@ class TestRun:
 
         print()
 
+    def print_fail_status(self):
+        data = np.load(f"data/{self.name}/data.npz")
+        t_num = data['t_num'].item()
+        vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz")
+        print(f"{self.name}: {math.isnan(vel_data)}")
+
+    def draw_benchm_comp(self):
+        os.mkdir(f"bplots/{self.name}")
+        data = np.load(f"data/{self.name}/data.npz")
+        t_num = data['t_num'].item()
+        vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz")
+        
+
+
     def draw_plots(self):
-        # os.mkdir(f"plots/{self.name}")
+        os.mkdir(f"plots/{self.name}")
 
         data = np.load(f"data/{self.name}/data.npz")
         t_num = data['t_num'].item()
         dt = data['dt'].item()
         visc = data['visc'].item()
         freq = data['freq'].item()
-        # t_num = 69000
-        # dt = 1
-        # visc = 0
-        # freq = 1000
         vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num, freq)]
         press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num, freq)]
 
