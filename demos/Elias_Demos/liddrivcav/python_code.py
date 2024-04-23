@@ -270,6 +270,9 @@ class TestRun:
                 if max < eps:
                     break
 
+                if math.is_nan(velocity.values).any:
+                    break
+
             else:
                 velocity, pressure = timestepper(velocity, pressure)
 
@@ -283,7 +286,7 @@ class TestRun:
         data = np.load(f"data/{self.name}/data.npz")
         t_num = data['t_num'].item()
         vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz")
-        print(f"{self.name}: {math.isnan(vel_data)}")
+        print(f"{self.name}: {math.any(math.is_nan(vel_data.values))}")
 
     def draw_benchm_comp(self):
         os.mkdir(f"bplots/{self.name}")
@@ -511,11 +514,21 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 eps = 1e-6
 
-for ord in ["low", "mid", "high"]:
-    for res in [8, 15, 30, 60, 120, 240]:
-        for re in [100, 1000]:
-            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.0003,
-                           name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0003")
+for re in [100, 1000]:
+    for ord in ["low", "mid", "high"]:
+    # for ord in ["high"]:
+        for res in [8, 15, 30, 60, 120, 240]:
+            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0001,
+                           name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
             test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+            # test.print_fail_status()
+
+# ord = 'low'
+# res = 15
+# re = 1000
+# test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.0003,
+#                name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0003")
+# test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+# test.print_fail_status()
 
 print('done')
