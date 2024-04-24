@@ -302,7 +302,7 @@ class TestRun:
 
 
     def draw_plots(self):
-        # os.mkdir(f"plots/{self.name}")
+        os.mkdir(f"plots/{self.name}")
 
         data = np.load(f"data/{self.name}/data.npz")
         t_num = data['t_num'].item()
@@ -543,7 +543,8 @@ for ord in ['low', 'mid' 'high']:
     for res in resols:
         test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001,
                        name=f"new_try_{res}")
-        test.run(t_num=300000, freq=100, jit_compile=True, eps=eps)
+        if ord != 'low' or res != 31:
+            test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
         test.draw_plots()
         # test.print_fail_status()
 
