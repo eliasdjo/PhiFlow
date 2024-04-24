@@ -503,7 +503,8 @@ def deprecated_field_class(for_class: str, parent_metaclass=None, allowed=("/phi
                 if filename in caller_file:
                     break
             else:
-                warnings.warn(f"Instance checks on {for_class} are deprecated and will be removed in version 3.0. Use the methods instance.is_grid, instance.is_point_cloud, instance.is_centered and instance.is_staggered instead.", FutureWarning, stacklevel=2)
+                pass
+                # warnings.warn(f"Instance checks on {for_class} are deprecated and will be removed in version 3.0. Use the methods instance.is_grid, instance.is_point_cloud, instance.is_centered and instance.is_staggered instead.", FutureWarning, stacklevel=2)
             return type.__instancecheck__(self, instance)
 
         def __subclasscheck__(self, subclass):

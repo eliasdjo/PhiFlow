@@ -219,6 +219,9 @@ class TestRun:
         velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
         pressure = CenteredGrid(0, **DOMAIN2)
 
+        # velocity = field.read(f"data/fast_ldc_ord_low_120_re_1000_dt0.0001/vel_7000.npz")
+        # pressure = field.read(f"data/fast_ldc_ord_low_120_re_1000_dt0.0001/press_7000.npz")
+
         field.write(velocity, f"data/{self.name}/vel_{0}")
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
@@ -236,7 +239,7 @@ class TestRun:
         #     vis.show()
         #     vis.plot(velocity.vector['x'], velocity.vector['y'], title=f'vel x and vel y {i}')
         #     vis.show()
-        #     div = field.divergence(velocity, order=4)
+        #     div = field.divergence(velocity, order=2)
         #     vis.plot(div, title=f'div {i}')
         #     vis.show()
         #     print(f"div {i}: ", math.mean(math.abs(div.values)))
@@ -246,11 +249,11 @@ class TestRun:
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
-                # div = field.divergence(velocity, order=4)
-                # div_mean = math.mean(math.abs(div.values))
-                # print(f"div mean: ", div_mean)
-                # div_max = math.max(math.abs(div.values))
-                # print(f"div max: ", div_max)
+                div = field.divergence(velocity, order=4)
+                div_mean = math.mean(math.abs(div.values))
+                print(f"div mean: ", div_mean)
+                div_max = math.max(math.abs(div.values))
+                print(f"div max: ", div_max)
 
                 # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
                 # vis.show()
@@ -287,25 +290,27 @@ class TestRun:
         t_num = data['t_num'].item()
         vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz")
         print(f"{self.name}: {math.any(math.is_nan(vel_data.values))}")
+        print(data['max_steady_state_diff'].item())
 
     def draw_benchm_comp(self):
         os.mkdir(f"bplots/{self.name}")
         data = np.load(f"data/{self.name}/data.npz")
         t_num = data['t_num'].item()
-        vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz")
+        vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz").values.numpy('x,y,vector')
+        f1 = vis.plot(vel_data[1], title=f'test')._obj
         
 
 
     def draw_plots(self):
-        os.mkdir(f"plots/{self.name}")
+        # os.mkdir(f"plots/{self.name}")
 
         data = np.load(f"data/{self.name}/data.npz")
         t_num = data['t_num'].item()
         dt = data['dt'].item()
         visc = data['visc'].item()
         freq = data['freq'].item()
-        vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num, freq)]
-        press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num, freq)]
+        vel_data = [field.read(f"data/{self.name}/vel_{i}.npz") for i in range(0, t_num+1, freq)]
+        press_data = [field.read(f"data/{self.name}/press_{i}.npz") for i in range(0, t_num+1, freq)]
 
         max_steady_state_diff = data['max_steady_state_diff'].item()
         div_mean = data['div_mean'].item()
@@ -317,22 +322,22 @@ class TestRun:
         # print(f"{self.name}: \t x_vel_max: {np.max(final_vel[mid_cell,:,0])}, \t y_vel_max:  {np.max(final_vel[:,mid_cell,1])}, \t y_vel_min:  {np.min(final_vel[:,mid_cell,1])}")
 
 
-        # for i in range(int(t_num / freq)):
-        #     t = tensor(i * freq * dt)
-        #     # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
-        #     # timestamp = '{:07.4f}'.format(float(t))
-        #     # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
-        #     # vis.close()
-        #     timestamp = '{:07.4f}'.format(float(t))
-        #     f1 = vis.plot(vel_data[i], title=f'{i}: vel')._obj
-        #     vis.savefig(f"plots/{self.name}/v_{timestamp}.jpg", f1)
-        #     vis.close()
-        #     f2 = vis.plot(press_data[i], title=f'{i}: press')._obj
-        #     vis.savefig(f"plots/{self.name}/p_{timestamp}.jpg", f2)
-        #     vis.close()
-        #     f3 = vis.plot(vel_data[i].vector['x'], vel_data[i].vector['y'], title=f'{i}: vel fields')._obj
-        #     vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f3)
-        #     vis.close()
+        for i in range(int(t_num / freq)+1):
+            t = tensor(i * freq * dt)
+            # f1 = vis.plot(vel[i], press[i], title=f'{i}: vel, press')._obj
+            # timestamp = '{:07.4f}'.format(float(t))
+            # vis.savefig(f"plots/{self.name}/v_and_p_{timestamp}.jpg", f1)
+            # vis.close()
+            timestamp = '{:07.4f}'.format(float(t))
+            f1 = vis.plot(vel_data[i], title=f'{i}: vel')._obj
+            vis.savefig(f"plots/{self.name}/v_{timestamp}.jpg", f1)
+            vis.close()
+            f2 = vis.plot(press_data[i], title=f'{i}: press')._obj
+            vis.savefig(f"plots/{self.name}/p_{timestamp}.jpg", f2)
+            vis.close()
+            f3 = vis.plot(vel_data[i].vector['x'], vel_data[i].vector['y'], title=f'{i}: vel fields')._obj
+            vis.savefig(f"plots/{self.name}/v_fields_{timestamp}.jpg", f3)
+            vis.close()
 
 
     def more_plots(self):
@@ -514,21 +519,33 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
 eps = 1e-6
 
-for re in [100, 1000]:
-    for ord in ["low", "mid", "high"]:
-    # for ord in ["high"]:
-        for res in [8, 15, 30, 60, 120, 240]:
-            test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0001,
-                           name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
-            test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
-            # test.print_fail_status()
+# for re in [1000]:
+#     for ord in ["low", "mid", "high"]:
+#         for res in [8, 15, 30, 60, 120, 240]:
+#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0001,
+#                            name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
+#             # test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+#             test.print_fail_status()
+
+# for re in [1000]:
+#     for ord in ["low", "mid", "high"]:
+#         for res in [8, 15, 30, 60, 120, 240]:
+#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0003,
+#                            name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
+#             # test.draw_plots()
+#             # test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+#             test.print_fail_status()
 
 # ord = 'low'
-# res = 15
-# re = 1000
-# test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.0003,
-#                name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0003")
-# test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
-# test.print_fail_status()
+resols = [31, 61, 121]
+re = 1000
+for ord in ['low', 'mid' 'high']:
+    for res in resols:
+        test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001,
+                       name=f"new_try_{res}")
+        test.run(t_num=300000, freq=100, jit_compile=True, eps=eps)
+        test.draw_plots()
+        # test.print_fail_status()
+
 
 print('done')

@@ -123,7 +123,7 @@ def make_incompressible2(velocity: GridType,
     # with plot_solves():
     # with math.SolveTape() as solves:
     #     pressure = math.solve_linear(m, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order, regulizer=1/div.dx.mean)
-    # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
+    # # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
     # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
 
     # pressure = math.solve_linear(math.dense(m)+1/div.dx.mean, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
@@ -132,9 +132,16 @@ def make_incompressible2(velocity: GridType,
         regulizer = 1/div.dx.mean
     else:
         regulizer = 0
+
     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=regulizer)
 
-    # pressure = pressure - math.mean(pressure.values)
+    # with math.SolveTape() as solves:
+    #     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+    # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
+    # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
+
+
+    pressure = pressure - math.mean(pressure.values)
     # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
     # print("press mean:  ", math.mean(pressure.values))
     # print("press sum:  ", math.sum(pressure.values))
