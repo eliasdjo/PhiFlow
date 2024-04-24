@@ -292,14 +292,6 @@ class TestRun:
         print(f"{self.name}: {math.any(math.is_nan(vel_data.values))}")
         print(data['max_steady_state_diff'].item())
 
-    def draw_benchm_comp(self):
-        os.mkdir(f"bplots/{self.name}")
-        data = np.load(f"data/{self.name}/data.npz")
-        t_num = data['t_num'].item()
-        vel_data = field.read(f"data/{self.name}/vel_{t_num}.npz").values.numpy('x,y,vector')
-        f1 = vis.plot(vel_data[1], title=f'test')._obj
-        
-
 
     def draw_plots(self):
         os.mkdir(f"plots/{self.name}")
@@ -536,17 +528,21 @@ eps = 1e-6
 #             # test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
 #             test.print_fail_status()
 
-# ord = 'low'
-resols = [31, 61, 121]
-re = 1000
-for ord in ['low', 'mid' 'high']:
-    for res in resols:
-        test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001,
-                       name=f"new_try_{res}")
-        if ord != 'low' or res != 31:
-            test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
-        test.draw_plots()
-        # test.print_fail_status()
+# # ord = 'low'
+# resols = [31, 61, 121]
+# re = 1000
+# for ord in ['low', 'mid' 'high']:
+#     for res in resols:
+#         test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001,
+#                        name=f"new_try_{res}")
+#         if ord != 'low' or res != 31:
+#             test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+#         test.draw_plots()
+#         # test.print_fail_status()
+
+test = TestRun(0, CenteredGrid, 'low', 31, 0.05, 1/1000, 0.001,
+                       name="")
+test.draw_benchm_comp()
 
 
 print('done')
