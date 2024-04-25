@@ -299,6 +299,10 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
     right_one_sided_stencil_tensor = [[[tensor(l3[1], batch('position', 'koeff_shifts', 'values'), convert=False) for l3 in l2] for l2 in l1] for l1 in one_sided_stencils]
 
     # boundary masks
+
+    standard_mask = field.with_values(math.zeros_like(field.resolution))
+    # standard_mask = field.with_values(0)
+    # standard_mask = field.with_values(math.zeros_like(field.valus))
     if output_type == CenteredGrid:
         standard_mask = CenteredGrid(0, resolution=field.shape)     # ToDo ed is this okay with batch dimensions?
     else:
