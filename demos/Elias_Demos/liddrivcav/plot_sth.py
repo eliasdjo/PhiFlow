@@ -30,7 +30,7 @@ def draw_benchm_comp(names, mode=['x','y']):
         nan_encountered = math.is_nan(mssd)
         vel_data = field.read(f"data/{name}/vel_{t_num + (-1 * freq if nan_encountered else 0)}.npz")
         if nan_encountered:
-            vel_data_ = field.read(f"data/{name}/vel_{t_num-2*freq}.npz")
+            vel_data_ = field.read(f"data/{name}/vel_{max(0, t_num-2*freq)}.npz")
             mssd = math.max(math.abs(vel_data.values - vel_data_.values)) / (dt * math.max(math.abs(vel_data_.values)))
             mssd = "circa: " + str(mssd.numpy()/freq)
         status.append(f'conv.: {not nan_encountered}  mssd: {mssd}')
@@ -45,12 +45,55 @@ def draw_benchm_comp(names, mode=['x','y']):
     vis.show()
     print('done')
 
+def plot_div(names, mode=math.max):
+    sim_vals = []
+    status = []
+    for name in names:
+        data = np.load(f"data/{name}/data.npz")
+        t_num = data['t_num'].item()
+        mssd = data['max_steady_state_diff'].item()
+        freq = data['freq']
+        freq = 10000
+        dt = data['dt']
+
+        nan_encountered = math.is_nan(mssd)
+        vel_data = [field.read(f"data/{name}/vel_{t}.npz") for t in range(0, t_num+1, freq)]
+
+        if 'low' in name: ordn = 2
+        if 'mid' in name: ordn = 4
+        if 'high' in name: ordn = 6
+        vel_data = [mode(math.abs(field.divergence(vel, order=ordn).values)) for vel in vel_data]
+        sim_val = vec(timestep=tensor(np.arange(0, t_num+1, freq), spatial('timestep')), divergence=tensor(vel_data, spatial('timestep')))
+        sim_vals.append(sim_val)
+    vis.plot(tensor(sim_vals, channel(res=["paper", *[n + " " + m for n, m in zip(names, status)]])),
+             title=f'{mode.__name__} divergence over the timesteps')
+    vis.show()
+    print('done')
+
+
 
 # for mode in [['x', 'y'], ['y', 'x']]:
-for mode in [['y', 'x']]:
-    draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
-    draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
+# for mode in [['y', 'x']]:
+#     # draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
+#     # draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
+#     # draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
+#
+#     draw_benchm_comp(["new_try_low_31", "new_try_mid_31", "new_try_high_31"], mode)
+#     draw_benchm_comp(["new_try_low_61", "new_try_mid_61", "new_try_high_61"], mode)
+#     draw_benchm_comp(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], mode)
 
-    draw_benchm_comp(["new_try_low_31", "new_try_mid_31"], mode)
-    draw_benchm_comp(["new_try_low_61", "new_try_mid_61"], mode)
+for mode in [['y', 'x']]:
+    # draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
+    # draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
+    # draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
+
+    draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+    draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+
+# for mode in [math.max, math.mean]:
+#     plot_div(["new_try_low_31", "new_try_low_61", "new_try_low_31"], mode)
+#     plot_div(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
+#     plot_div(["new_try_high_31", "new_try_mid_61"], mode)
+
+# plot_div(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], math.max)
 print("done")
