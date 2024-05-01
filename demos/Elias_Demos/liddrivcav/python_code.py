@@ -541,14 +541,25 @@ eps = 1e-6
 #         # test.print_fail_status()
 
 
+# re = 1000
+# res = 121
+# for ord in ['low', 'high']:
+#     for dt in [0.003, 0.001, 0.0003, 0.0001]:
+#             test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
+#                                name=f"timestep_invest2_{ord}_{res}_dt_{dt}")
+#             test.run(t_num=3000000, freq=1000, jit_compile=True, eps=eps)
+#             test.draw_plots()
+#             # test.print_fail_status()
+
+resols = [31, 61, 121]
 re = 1000
-res = 121
-for ord in ['low', 'high']:
-    for dt in [0.003, 0.001, 0.0003, 0.0001]:
-            test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
-                               name=f"timestep_invest2_{ord}_{res}_dt_{dt}")
-            test.run(t_num=3000000, freq=1000, jit_compile=True, eps=eps)
-            test.draw_plots()
-            # test.print_fail_status()
+# for ord in ['low', 'mid', 'high']:
+for ord in ['mid']:
+    for res in resols:
+        test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
+                           name=f"new_try_{ord}_{res}")
+        test.run(t_num=300000, freq=1, jit_compile=False, eps=eps)
+        test.draw_plots()
+        # test.print_fail_status()
 
 print('done')
