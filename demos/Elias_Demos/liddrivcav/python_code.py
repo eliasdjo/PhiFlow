@@ -34,7 +34,7 @@ def plane_poisseuille_init(x, vis=1, p_grad=1, h=1):
 
 class TestRun:
 
-    def __init__(self, tges, gridtype, order, xynum, p_grad, vis, dt, name='data'):
+    def __init__(self, tges, at, order, xynum, p_grad, vis, dt, name='data'):
 
         if order == 'phi':
             self.adv_diff_press = self.adp_phi_flow
@@ -55,7 +55,7 @@ class TestRun:
         self.order = order
         self.name = name
         self.t_num = int(math.ceil(tges / dt))
-        self.gridtype = gridtype
+        self.at = at
         self.timestep = self.fourth_ord_runge_kutta
         self.xynum = xynum
         self.p_grad = p_grad
@@ -120,8 +120,8 @@ class TestRun:
     def adp_high_ord_impl(self, v, p):
         adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
         adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
-        return adv_diff_press
+        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=4, gradient_extrapolation=extrapolation.ZERO)
+        return adv_diff_press.with_extrapolation(0)
 
     def pt_high_ord_impl(self, v, p, dt_=None):
         if dt_ is None:
@@ -138,7 +138,7 @@ class TestRun:
         adv_diff_press += diff
         # vis.plot(diff.vector['x'], diff.vector['y'], title=f'vel 4')
         # vis.show()
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=6, gradient_extrapolation=extrapolation.ZERO)
+        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=6, gradient_extrapolation=extrapolation.ZERO)
         return adv_diff_press
 
     def pt_high_ord(self, v, p, dt_=None):
@@ -158,8 +158,8 @@ class TestRun:
         adv_diff_press += diff
         # vis.plot(adv.vector['x'], adv.vector['y'], title=f'vel 4')
         # vis.show()
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, order=4, gradient_extrapolation=extrapolation.ZERO)
-        return adv_diff_press
+        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=4, gradient_extrapolation=extrapolation.ZERO)
+        return adv_diff_press.with_extrapolation(0)
 
     def pt_mid_ord(self, v, p, dt_=None):
         if dt_ is None:
@@ -178,8 +178,8 @@ class TestRun:
         adv_diff_press += diff
         # vis.plot(diff.vector['x'], diff.vector['y'], title=f'vel 4')
         # vis.show()
-        adv_diff_press -= field.spatial_gradient(p, type=self.gridtype, gradient_extrapolation=extrapolation.ZERO)
-        return adv_diff_press
+        adv_diff_press -= field.spatial_gradient(p, at=self.at, gradient_extrapolation=extrapolation.ZERO)
+        return adv_diff_press.with_extrapolation(0)
 
     def pt_low_ord(self, v, p, dt_=None):
         if dt_ is None:
@@ -216,7 +216,7 @@ class TestRun:
                        extrapolation=extrapolation.ZERO_GRADIENT)
 
 
-        velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
+        velocity = CenteredGrid(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
         pressure = CenteredGrid(0, **DOMAIN2)
 
         # velocity = field.read(f"data/fast_ldc_ord_low_120_re_1000_dt0.0001/vel_7000.npz")
@@ -226,6 +226,8 @@ class TestRun:
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
         div = field.divergence(velocity, order=4)
+        # vis.plot(velocity, pressure, div, title=f'vel press div')
+        # vis.show()
         div_mean = math.mean(math.abs(div.values)).numpy().max()
         print(f"div mean: ", div_mean)
         div_max = math.max(math.abs(div.values)).numpy().max()
@@ -532,12 +534,12 @@ eps = 1e-6
 
 resols = [31, 61, 121]
 re = 1000
-# for ord in ['low', 'mid', 'high']:
-for ord in ['mid']:
+for ord in ['low', 'mid', 'high']:
+# for ord in ['mid']:
     for res in resols:
-        test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
+        test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
                            name=f"new_try_{ord}_{res}")
-        test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+        test.run(t_num=300000, freq=1, jit_compile=False, eps=eps)
         test.draw_plots()
         # test.print_fail_status()
 

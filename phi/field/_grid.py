@@ -244,7 +244,7 @@ def _get_resolution(resolution: Shape, resolution_: dict, bounds: Box):
     return (resolution or math.EMPTY_SHAPE) & resolution_
 
 
-def _dyadic_interpolate(grid: Tensor, interpolation_dirs: List, padding: Extrapolation, order: int, implicit: Solve):
+def _dyadic_interpolate(grid: Tensor, interpolation_dirs: list, padding: Extrapolation, order: int, implicit: math.Solve):
     """
     Samples a sub-grid from `grid` with an offset of half a grid cell in directions defined by `interpolation_dirs`.
 

@@ -109,17 +109,17 @@ def differential(u: Field,
         grad_list = [spatial_gradient(field_component, stack_dim=channel('grad_dim'), order=order, implicit=implicit) for field_component in u.vector]
         grad_grid = u.with_values(math.stack([component.values for component in grad_list], channel(velocity).as_dual()))
         if order == 4:
-            amounts = [grad * vel.at(grad, order=2) for grad, vel in zip(grad_grid.grad_dim, velocity.vector)]  # ToDo resampling does not yet support order=4
+            amounts = [grad * vel.at(grad, order=2) for grad, vel in zip(grad_grid.grad_dim, u.vector)]  # ToDo resampling does not yet support order=4
         else:
-            velocity.vector[0].at(grad_grid.gradient[0], order=order, implicit=implicit)
-            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, velocity.vector)]
+            u.vector[0].at(grad_grid.gradient[0], order=order, implicit=implicit)
+            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, u.vector)]
         amount = sum(amounts)
-        return velocity.with_values(- amount)
+        return u.with_values(- amount)
     elif u.is_grid and u.is_centered:
         # grad = stack([spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit) for component in grid.vector], dim=channel('vector'))
         grad_tensor = math.stack(
             [spatial_gradient(component, stack_dim=channel('gradient'), order=order, implicit=implicit).values for
-             component in grid.vector], dim=channel('vector'))
+             component in u.vector], dim=channel('vector'))
         velocity_tensor = math.stack(math.unstack(velocity.values, dim='vector'), dim=channel('gradient'))
         amounts = velocity_tensor * grad_tensor
         amount = sum(amounts.gradient)
