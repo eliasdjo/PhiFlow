@@ -83,12 +83,12 @@ def plot_div(names, mode=math.max):
 #     draw_benchm_comp(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], mode)
 
 for mode in [['y', 'x']]:
-    # draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
-    # draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
-    # draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
-
-    draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
-    draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+    draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
+    draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
+    draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
+    #
+    # draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+    # draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
 
 # for mode in [math.max, math.mean]:
 #     plot_div(["new_try_low_31", "new_try_low_61", "new_try_low_31"], mode)

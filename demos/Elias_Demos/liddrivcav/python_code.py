@@ -189,8 +189,10 @@ class TestRun:
         p += delta_p / dt_
         return v, p
 
-    def run(self, jit_compile=True, t_num=0, freq=100, eps=0):
+    def run(self, jit_compile=True, t_num=0, freq=100, eps=0, recap=False):
         print(f"run {self.name}:")
+        if recap:
+            self.name += "_rec"
 
         while(True):
             try:
@@ -215,9 +217,16 @@ class TestRun:
         DOMAIN2 = dict(bounds=Box['x,y', 0:1, 0:1], x=self.xynum, y=self.xynum,
                        extrapolation=extrapolation.ZERO_GRADIENT)
 
-
-        velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
-        pressure = CenteredGrid(0, **DOMAIN2)
+        if recap:
+            post_name = self.name[:-4]
+            data = np.load(f"data/{post_name}/data.npz")
+            t_num = data['t_num'].item()
+            freq = data['freq'].item()
+            velocity = field.read(f"data/{post_name}/vel_{t_num}.npz")
+            pressure = field.read(f"data/{post_name}/press_{t_num}.npz")
+        else:
+            velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
+            pressure = CenteredGrid(0, **DOMAIN2)
 
         # velocity = field.read(f"data/fast_ldc_ord_low_120_re_1000_dt0.0001/vel_7000.npz")
         # pressure = field.read(f"data/fast_ldc_ord_low_120_re_1000_dt0.0001/press_7000.npz")
@@ -558,7 +567,7 @@ for ord in ['low', 'mid', 'high']:
     for res in resols:
         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
                            name=f"new_try_{ord}_{res}")
-        test.run(t_num=300000, freq=1, jit_compile=True, eps=eps)
+        test.run(t_num=300000, freq=1, jit_compile=True, eps=eps, recap=True)
         test.draw_plots()
         # test.print_fail_status()
 
