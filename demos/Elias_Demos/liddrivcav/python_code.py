@@ -192,7 +192,14 @@ class TestRun:
     def run(self, jit_compile=True, t_num=0, freq=100, eps=0, recap=False):
         print(f"run {self.name}:")
         if recap:
-            self.name += "_rec"
+            self.name += "_rez"
+
+        if self.order == 'low':
+            order = 2
+        elif self.order == 'mid':
+            order = 4
+        elif self.order == 'high':
+            order = 6
 
         while(True):
             try:
@@ -219,11 +226,11 @@ class TestRun:
 
         if recap:
             post_name = self.name[:-4]
-            data = np.load(f"data/{post_name}/data.npz")
-            t_num = data['t_num'].item()
-            freq = data['freq'].item()
-            velocity = field.read(f"data/{post_name}/vel_{t_num}.npz")
-            pressure = field.read(f"data/{post_name}/press_{t_num}.npz")
+            data_ = np.load(f"data/{post_name}/data.npz")
+            t_num_ = data_['t_num'].item()
+            freq_ = data_['freq'].item()
+            velocity = field.read(f"data/{post_name}/vel_{t_num_-freq_}.npz")
+            pressure = field.read(f"data/{post_name}/press_{t_num_-freq_}.npz")
         else:
             velocity = self.gridtype(tensor([0, 0], channel(vector='x, y')), **DOMAIN)
             pressure = CenteredGrid(0, **DOMAIN2)
@@ -234,7 +241,8 @@ class TestRun:
         field.write(velocity, f"data/{self.name}/vel_{0}")
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
-        div = field.divergence(velocity, order=4)
+        diver = math.jit_compile(field.divergence, "order, implicit, implicitness")
+        div = diver(velocity, order=order)
         div_mean = math.mean(math.abs(div.values)).numpy().max()
         print(f"div mean: ", div_mean)
         div_max = math.max(math.abs(div.values)).numpy().max()
@@ -254,11 +262,11 @@ class TestRun:
         #     print(f"div {i}: ", math.mean(math.abs(div.values)))
         #     print(f"max div {i}: ", math.max(math.abs(div.values)))
 
-        for i in range(1, self.t_num+1):
+        for i in range(1, self.t_num+1 if not recap else 2000):
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
-                div = field.divergence(velocity, order=4)
+                div = diver(velocity, order=order)
                 div_mean = math.mean(math.abs(div.values))
                 print(f"div mean: ", div_mean)
                 div_max = math.max(math.abs(div.values))
