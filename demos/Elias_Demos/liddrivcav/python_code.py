@@ -553,12 +553,12 @@ eps = 1e-6
 
 resols = [31, 61, 121]
 re = 1000
-# for ord in ['low', 'mid', 'high']:
-for ord in ['mid']:
+for ord in ['low', 'mid', 'high']:
+# for ord in ['low']:
     for res in resols:
         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
                            name=f"new_try_{ord}_{res}")
-        test.run(t_num=300000, freq=1, jit_compile=False, eps=eps)
+        test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
         test.draw_plots()
         # test.print_fail_status()
 
