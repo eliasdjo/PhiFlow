@@ -42,12 +42,15 @@ class TestRun:
         elif order == 'low':
             self.adv_diff_press = self.adp_low_ord
             self.pressure_treatment = self.pt_low_ord
+            self.ord = 2
         elif order == 'mid':
             self.adv_diff_press = self.adp_mid_ord
             self.pressure_treatment = self.pt_mid_ord
+            self.ord = 4
         if order == 'high':
             self.adv_diff_press = self.adp_high_ord
             self.pressure_treatment = self.pt_high_ord
+            self.ord = 6
         if order == 'high_impl':
             self.adv_diff_press = self.adp_high_ord_impl
             self.pressure_treatment = self.pt_high_ord_impl
@@ -61,6 +64,9 @@ class TestRun:
         self.p_grad = p_grad
         self.vis = vis
         self.dt = dt
+
+        self.diver = 0
+
 
     def phi_flow(self, velocity, pressure):
         velocity = advect.semi_lagrangian(velocity, velocity, self.dt)
@@ -145,9 +151,15 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible2(v, order=4,
-                                      solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10))
+            fluid.make_incompressible2(v, order=6,
+                                      solve=math.Solve('scipy-biCG-stab', 1e-7, 1e-7))
         p += delta_p / dt_
+
+        # div = field.divergence(v, order=self.ord)
+        # div_mean = math.mean(math.abs(div.values))
+        # print(f"div mean: ", div_mean)
+        # div_max = math.max(math.abs(div.values))
+        # print(f"div max: ", div_max)
         return v, p
 
 
@@ -241,8 +253,8 @@ class TestRun:
         field.write(velocity, f"data/{self.name}/vel_{0}")
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
-        diver = math.jit_compile(field.divergence, "order, implicit, implicitness")
-        div = diver(velocity, order=order)
+        self.diver = math.jit_compile(field.divergence, "order, implicit, implicitness")
+        div = self.diver(velocity, order=self.ord)
         div_mean = math.mean(math.abs(div.values)).numpy().max()
         print(f"div mean: ", div_mean)
         div_max = math.max(math.abs(div.values)).numpy().max()
@@ -266,7 +278,7 @@ class TestRun:
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
-                div = diver(velocity, order=order)
+                div = self.diver(velocity, order=self.ord)
                 div_mean = math.mean(math.abs(div.values))
                 print(f"div mean: ", div_mean)
                 div_max = math.max(math.abs(div.values))
@@ -549,34 +561,42 @@ eps = 1e-6
 
 # resols = [31, 61, 121]
 # re = 1000
-# for ord in ['low', 'mid', 'high']:
+# # for ord in ['low', 'mid', 'high']:
+# for ord in ['high']:
 #     for res in resols:
 #         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
-#                            name=f"new_try_{ord}_{res}")
-#         test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
+#                            name=f"fully_working2___{ord}_{res}")
+#         test.run(t_num=300000, freq=100, jit_compile=False, eps=eps)
 #         test.draw_plots()
 #         # test.print_fail_status()
 
 
-# re = 1000
-# res = 121
-# for ord in ['low', 'high']:
-#     for dt in [0.003, 0.001, 0.0003, 0.0001]:
-#             test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
-#                                name=f"timestep_invest2_{ord}_{res}_dt_{dt}")
-#             test.run(t_num=3000000, freq=1000, jit_compile=True, eps=eps)
-#             test.draw_plots()
-#             # test.print_fail_status()
-
-resols = [31, 61, 121]
 re = 1000
-for ord in ['low', 'mid', 'high']:
-# for ord in ['low']:
-    for res in resols:
-        test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
-                           name=f"new_try_{ord}_{res}")
-        test.run(t_num=300000, freq=1, jit_compile=True, eps=eps, recap=True)
-        test.draw_plots()
-        # test.print_fail_status()
+res = 121
+for ord in ['high']:
+    for dt in [0.0001]:
+    # for dt in [0.0001]:
+    #         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
+    #                            name=f"fully_not_working2_10xregulizer___{ord}_{res}_dt_{dt}")
+    #         test.run(t_num=3000000, freq=1, jit_compile=True, eps=eps)
+    #         test.draw_plots()
+
+            test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
+                           name=f"fully_not_working2_scipy_bicgstab___{ord}_{res}_dt_{dt}")
+            test.run(t_num=3000000, freq=1, jit_compile=True, eps=eps)
+            test.draw_plots()
+            # test.print_fail_status()
+
+# # resols = [31, 61, 121]
+# resols = [121]
+# re = 1000
+# # for ord in ['low', 'mid', 'high']:
+# for ord in ['high']:
+#     for res in resols:
+#         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
+#                            name=f"new_try_{ord}_{res}")
+#         test.run(t_num=300000, freq=100, jit_compile=True, eps=eps, recap=False)
+#         test.draw_plots()
+#         # test.print_fail_status()
 
 print('done')

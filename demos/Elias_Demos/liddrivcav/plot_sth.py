@@ -45,7 +45,7 @@ def draw_benchm_comp(names, mode=['x','y']):
     vis.show()
     print('done')
 
-def plot_div(names, mode=math.max):
+def plot_div(names, mode=math.max, plot_div=False):
     sim_vals = []
     status = []
     for name in names:
@@ -53,22 +53,32 @@ def plot_div(names, mode=math.max):
         t_num = data['t_num'].item()
         mssd = data['max_steady_state_diff'].item()
         freq = data['freq']
-        freq = 10000
         dt = data['dt']
-
-        nan_encountered = math.is_nan(mssd)
-        vel_data = [field.read(f"data/{name}/vel_{t}.npz") for t in range(0, t_num+1, freq)]
 
         if 'low' in name: ordn = 2
         if 'mid' in name: ordn = 4
         if 'high' in name: ordn = 6
         diver = math.jit_compile(field.divergence, 'order, implicit, implicitness')
-        vel_data = [mode(math.abs(diver(vel, order=ordn).values)) for vel in vel_data]
-        sim_val = vec(timestep=tensor(np.arange(0, t_num+1, freq), spatial('timestep')), divergence=tensor(vel_data, spatial('timestep')))
+
+
+        divs = []
+        nan_encountered = math.is_nan(mssd)
+        for i in range(0, t_num + 1, freq):
+            vel = field.read(f"data/{name}/vel_{i}.npz")
+            div = diver(vel, order=ordn)
+            if plot_div:
+                f1 = vis.plot(div, title=f'{i}: div')._obj
+                t = tensor(i * freq * dt)
+                timestamp = '{:07.4f}'.format(float(t))
+                vis.savefig(f"plots/{name}/div_{timestamp}.jpg", f1)
+                vis.close()
+            divs.append(mode(math.abs(div.values)))
+
+        sim_val = vec(timestep=tensor(np.arange(0, t_num+1, freq), spatial('timestep')), divergence=tensor(divs, spatial('timestep')))
         sim_vals.append(sim_val)
-        f3 = vis.plot(tensor(sim_vals, channel(res=["paper", *[n + " " + m for n, m in zip(names, status)]])),
-                 title=f'{mode.__name__} divergence over the timesteps')._obj
-        vis.savefig(f"plots/{name}/divergence_evolution.jpg", f3)
+        f3 = vis.plot(tensor(sim_vals, channel(res=["paper", *[n + " " + m for n, m in zip(names, status)]]), ),
+                 title=f'{mode.__name__} divergence over the timesteps', log_dims='divergence')._obj
+        vis.savefig(f"plots/{name}/{mode.__name__}_divergence_evolution.jpg", f3)
         vis.close()
     print('done')
 
@@ -76,12 +86,12 @@ def plot_div(names, mode=math.max):
 
 # for mode in [['x', 'y'], ['y', 'x']]:
 # for mode in [['y', 'x']]:
-#     # draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
-#     # draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
-#     # draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
+#     draw_benchm_comp(["fully_working2___low_31", "fully_working2___low_61", "fully_working2___low_121"], mode)
+#     draw_benchm_comp(["fully_working2___mid_31", "fully_working2___mid_61", "fully_working2___mid_121"], mode)
+#     draw_benchm_comp(["fully_working2___high_31", "fully_working2___high_61", "fully_working2___high_121"], mode)
 #
-#     draw_benchm_comp(["new_try_low_31", "new_try_mid_31", "new_try_high_31"], mode)
-#     draw_benchm_comp(["new_try_low_61", "new_try_mid_61", "new_try_high_61"], mode)
+    # draw_benchm_comp(["fully_working2___high_121_dt_0.003", "fully_working2___high_121_dt_0.0001"], mode)
+    # draw_benchm_comp(["new_try_low_61", "new_try_mid_61", "new_try_high_61"], mode)
 #     draw_benchm_comp(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], mode)
 
 # -------------------------------------------------------------------------------------------------
@@ -100,14 +110,23 @@ def plot_div(names, mode=math.max):
 #     draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
 #     draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
 
-for mode in [['y', 'x']]:
-    draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
-    draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+# for mode in [['y', 'x']]:
+#     draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
+#     draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
 
 # for mode in [math.max, math.mean]:
 #     plot_div(["new_try_low_31_rez", "new_try_low_61_rez", "new_try_low_31_rez"], mode)
 #     plot_div(["new_try_mid_31_rez", "new_try_mid_61_rez", "new_try_mid_121_rez"], mode)
 #     plot_div(["new_try_high_31_rez", "new_try_mid_61_rez", "new_try_mid_121_rez"], mode)
 
-# plot_div(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], math.max)
+# plot_div(["fully_not_working2___high_121_dt_0.0001"], math.mean, plot_div=False)
+# plot_div(["fully_not_working2___high_121_dt_0.0001"], math.max)
+# plot_div(["fully_not_working2___high_121_dt_0.003"], math.mean, plot_div=False)
+# plot_div(["fully_not_working2___high_121_dt_0.003"], math.max)
+
+plot_div(["fully_working2___high_121_dt_0.0001"], math.mean, plot_div=True)
+plot_div(["fully_working2___high_121_dt_0.0001"], math.max)
+plot_div(["fully_working2___high_121_dt_0.003"], math.mean, plot_div=True)
+plot_div(["fully_working2___high_121_dt_0.003"], math.max)
+
 print("done")

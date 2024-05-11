@@ -92,14 +92,15 @@ def make_incompressible2(velocity: GridType,
     div = divergence(velocity, order=order)
     input_div_mean = field.mean(div)
     div = div - input_div_mean
+    # div = div.with_values(1)
 
     pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
 
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
 
-    # m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
-    #                                    auxiliary_args='hard_bcs, active, order, implicit', order=order)
-    # dense_orig = math.dense(m) + 1
+    m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
+                                       auxiliary_args='hard_bcs, active, order, implicit', order=order)
+    dense_orig = math.dense(m) + 1 * 1/div.dx.mean
     # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
 
     # div_numpy = math.reshaped_numpy(div.values, [spatial])
@@ -123,7 +124,7 @@ def make_incompressible2(velocity: GridType,
     # with plot_solves():
     # with math.SolveTape() as solves:
     #     pressure = math.solve_linear(m, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order, regulizer=1/div.dx.mean)
-    # # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
+    # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
     # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
 
     # pressure = math.solve_linear(math.dense(m)+1/div.dx.mean, div - div.with_values(off), solve, math.tensor(0), math.tensor(0), order=order)
@@ -133,15 +134,24 @@ def make_incompressible2(velocity: GridType,
     else:
         regulizer = 0
 
-    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=regulizer)
-
     # with math.SolveTape() as solves:
     #     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+    # pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+    pressure = math.solve_linear(dense_orig, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+
+    # from phi import vis
+    # vis.plot(pressure)
+    # vis.show()
+
+    # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
     # print("residual mean:  ", math.mean(math.abs(solves[0].residual.values)))
     # print("residual max:  ", math.max(math.abs(solves[0].residual.values)))
+    # print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
+    # print("error phi_flow max: ", math.max(math.abs(test.values - div.values)), "\n")
 
+    # pressure = pressure - math.mean(pressure.values)
 
-    pressure = pressure - math.mean(pressure.values)
+    # pressure = pressure - math.mean(pressure.values)
     # test = masked_laplace(pressure, math.tensor(0), math.tensor(0), order)
     # print("press mean:  ", math.mean(pressure.values))
     # print("press sum:  ", math.sum(pressure.values))
@@ -149,12 +159,18 @@ def make_incompressible2(velocity: GridType,
     # print("error phi_flow: ",  math.mean(math.abs(test.values - div.values)))
     # print("error phi_flow max: ", math.max(math.abs(test.values - div.values)))
 
-    # from phi import vis
-    # vis.plot(pressure.with_values(test), title='test')
-    # vis.show()
-
+    # grad_pressure = field.spatial_gradient(pressure.with_extrapolation(extrapolation.ZERO_GRADIENT), type=type(velocity), order=order)
     grad_pressure = field.spatial_gradient(pressure, type=type(velocity), order=order)
+
+    # test = field.divergence(grad_pressure.with_extrapolation(extrapolation.ZERO), order=order)
+    # print("error test: ",  math.mean(math.abs(test.values - div.values)))
+    # print("error test max: ", math.max(math.abs(test.values - div.values)), "\n")
+
     velocity = velocity - grad_pressure
+    # test = field.divergence(velocity.with_extrapolation(extrapolation.ZERO), order=order)
+    # print("error test2: ",  math.mean(math.abs(test.values)))
+    # print("error test2 max: ", math.max(math.abs(test.values)), "\n")
+
     return velocity, pressure
 
 
@@ -249,9 +265,14 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
     #     # laplace = divergence(grad, order=order)
     #     laplace = field.laplace(pressure, order=order, implicit=implicit)
 
-    # grad = spatial_gradient(pressure, order=order, type=CenteredGrid)
+    # vel_ext = extrapolation.combine_sides(
+    #                       x=extrapolation.ZERO,
+    #                       y=(extrapolation.ZERO, extrapolation.combine_by_direction(extrapolation.ZERO, extrapolation.ConstantExtrapolation(-1))))
+    # grad = spatial_gradient(pressure.with_extrapolation(extrapolation.ZERO_GRADIENT), order=order, type=CenteredGrid, gradient_extrapolation=extrapolation.ZERO)
     # laplace = divergence(grad, order=order)
     laplace = field.laplace(pressure, order=order, implicit=implicit)
+
+    # laplace = field.laplace(pressure, order=order, implicit=implicit)
 
     return laplace
 
