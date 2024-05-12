@@ -152,7 +152,7 @@ class TestRun:
             dt_ = self.dt
         v, delta_p = \
             fluid.make_incompressible2(v, order=6,
-                                      solve=math.Solve('scipy-biCG-stab', 1e-7, 1e-7))
+                                      solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
         p += delta_p / dt_
 
         # div = field.divergence(v, order=self.ord)
@@ -533,12 +533,12 @@ eps = 1e-6
 
 
 re = 1000
-res = 121
-for ord in ['high']:
+res = 31
+for ord in ['mid']:
     for dt in [0.0001]:
             test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
                            name=f"fully_not_working2_scipy_bicgstab___{ord}_{res}_dt_{dt}")
-            test.run(t_num=3000000, freq=1, jit_compile=True, eps=eps)
+            test.run(t_num=3000000, freq=1, jit_compile=False, eps=eps)
             test.draw_plots()
             # test.print_fail_status()
 

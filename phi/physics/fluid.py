@@ -90,17 +90,17 @@ def make_incompressible2(velocity: GridType,
 
 
     div = divergence(velocity, order=order)
-    input_div_mean = field.mean(div)
-    div = div - input_div_mean
+    # input_div_mean = field.mean(div)
+    # div = div - input_div_mean
     # div = div.with_values(1)
 
     pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
 
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
 
-    m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
-                                       auxiliary_args='hard_bcs, active, order, implicit', order=order)
-    dense_orig = math.dense(m) + 1 * 1/div.dx.mean
+    # m, off = math.matrix_from_function(masked_laplace, dummy, math.tensor(0), math.tensor(0),
+    #                                    auxiliary_args='hard_bcs, active, order, implicit', order=order)
+    # dense_orig = math.dense(m) + 1 * 1/div.dx.mean
     # dense_orig_numpy = math.reshaped_numpy(dense_orig, [spatial, dual])
 
     # div_numpy = math.reshaped_numpy(div.values, [spatial])
@@ -136,8 +136,8 @@ def make_incompressible2(velocity: GridType,
 
     # with math.SolveTape() as solves:
     #     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
-    # pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
-    pressure = math.solve_linear(dense_orig, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
+    # pressure = math.solve_linear(dense_orig, div, solve, math.tensor(0), math.tensor(0), order=order, regulizer=math.sqrt(regulizer))
 
     # from phi import vis
     # vis.plot(pressure)
