@@ -8,6 +8,10 @@ import numpy as np
 
 from phi.jax.flow import *
 
+def save(f, s):
+    np.savez_compressed(f"data/{s}", data=f.values.numpy(f.values.shape.names))
+
+
 math.set_global_precision(64)
 
 
