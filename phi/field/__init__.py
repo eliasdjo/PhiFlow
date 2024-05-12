@@ -31,7 +31,7 @@ from phiml.math import (
     l2_loss, l1_loss, frequency_loss,
     unstack, stack, concat  # expand, rename_dims, pack_dims, unpack_dims
 )
-from ._field_math2 import (
+from ._field_math import (
     assert_close,
     bake_extrapolation,
     laplace, spatial_gradient, divergence, stagger, curl,  # spatial operators
