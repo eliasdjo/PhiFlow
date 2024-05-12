@@ -516,46 +516,7 @@ def overview_plot(names_block, block_names=None, title='', folder_name='overview
 
     plt_lines(convergence_lines, title + " convergence course")
 
-# for re in [100, 1000]:
-# # for re in [100]:
-#     for ord in ['mid', 'low', 'high']:
-#     # for ord in ['mid']:
-#         for res in [15, 31]:
-#         # for res in [15]:
-#         #     if ord == 'mid' and re == 100 and res == 15:
-#         #         pass
-#         #     else:
-#             eps = 1e-6
-#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldclast_re{re}_ord{ord}_res{res}")
-#             # test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
-#             test.draw_plots()
-#
-# for re in [100, 1000]:
-#     for ord in ['mid', 'low', 'high']:
-#         res = 47
-#         eps = 1e-6
-#         test = TestRun(0, CenteredGrid, ord, res, 0.05, 1/re, 0.001, name=f"paperldclast_re{re}_ord{ord}_res{res}")
-#         # test.run(t_num=200000, freq=1000, jit_compile=True, eps=eps)
-#         test.draw_plots()
-
 eps = 1e-6
-
-# for re in [1000]:
-#     for ord in ["low", "mid", "high"]:
-#         for res in [8, 15, 30, 60, 120, 240]:
-#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0001,
-#                            name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
-#             # test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
-#             test.print_fail_status()
-
-# for re in [1000]:
-#     for ord in ["low", "mid", "high"]:
-#         for res in [8, 15, 30, 60, 120, 240]:
-#             test = TestRun(0, CenteredGrid, ord, res, 0.05, 1 / re, 0.0003,
-#                            name=f"fast_ldc_ord_{ord}_{res}_re_{re}_dt0.0001")
-#             # test.draw_plots()
-#             # test.run(t_num=300000, freq=1000, jit_compile=True, eps=eps)
-#             test.print_fail_status()
 
 
 
@@ -575,28 +536,11 @@ re = 1000
 res = 121
 for ord in ['high']:
     for dt in [0.0001]:
-    # for dt in [0.0001]:
-    #         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
-    #                            name=f"fully_not_working2_10xregulizer___{ord}_{res}_dt_{dt}")
-    #         test.run(t_num=3000000, freq=1, jit_compile=True, eps=eps)
-    #         test.draw_plots()
-
             test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, dt,
                            name=f"fully_not_working2_scipy_bicgstab___{ord}_{res}_dt_{dt}")
             test.run(t_num=3000000, freq=1, jit_compile=True, eps=eps)
             test.draw_plots()
             # test.print_fail_status()
 
-# # resols = [31, 61, 121]
-# resols = [121]
-# re = 1000
-# # for ord in ['low', 'mid', 'high']:
-# for ord in ['high']:
-#     for res in resols:
-#         test = TestRun(0, CenteredGrid, ord, res, None, 1 / re, 0.001,
-#                            name=f"new_try_{ord}_{res}")
-#         test.run(t_num=300000, freq=100, jit_compile=True, eps=eps, recap=False)
-#         test.draw_plots()
-#         # test.print_fail_status()
 
 print('done')

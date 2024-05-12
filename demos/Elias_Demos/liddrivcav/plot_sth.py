@@ -84,40 +84,15 @@ def plot_div(names, mode=math.max, plot_div=False):
 
 
 
-# for mode in [['x', 'y'], ['y', 'x']]:
+for mode in [['x', 'y'], ['y', 'x']]:
 # for mode in [['y', 'x']]:
 #     draw_benchm_comp(["fully_working2___low_31", "fully_working2___low_61", "fully_working2___low_121"], mode)
 #     draw_benchm_comp(["fully_working2___mid_31", "fully_working2___mid_61", "fully_working2___mid_121"], mode)
 #     draw_benchm_comp(["fully_working2___high_31", "fully_working2___high_61", "fully_working2___high_121"], mode)
-#
-    # draw_benchm_comp(["fully_working2___high_121_dt_0.003", "fully_working2___high_121_dt_0.0001"], mode)
-    # draw_benchm_comp(["new_try_low_61", "new_try_mid_61", "new_try_high_61"], mode)
-#     draw_benchm_comp(["new_try_low_121", "new_try_mid_121", "new_try_high_121"], mode)
+
+    draw_benchm_comp(["fully_working2___high_121_dt_0.003", "fully_working2___high_121_dt_0.0001"], mode)
 
 # -------------------------------------------------------------------------------------------------
-
-# for mode in [['y', 'x']]:
-#     draw_benchm_comp(["new_try_low_31_rez", "new_try_low_61_rez", "new_try_low_121_rez"], mode)
-#     draw_benchm_comp(["new_try_mid_31_rez", "new_try_mid_61_rez", "new_try_mid_121_rez"], mode)
-#     draw_benchm_comp(["new_try_high_31_rez", "new_try_high_61_rez", "new_try_high_121_rez"], mode)
-
-
-# --------------------------------------------------------------------------------------------
-
-
-# for mode in [['y', 'x']]:
-#     draw_benchm_comp(["new_try_low_31", "new_try_low_61", "new_try_low_121"], mode)
-#     draw_benchm_comp(["new_try_mid_31", "new_try_mid_61", "new_try_mid_121"], mode)
-#     draw_benchm_comp(["new_try_high_31", "new_try_high_61", "new_try_high_121"], mode)
-
-# for mode in [['y', 'x']]:
-#     draw_benchm_comp([f"timestep_invest_low_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
-#     draw_benchm_comp([f"timestep_invest_high_121_dt_{dt}" for dt in [0.003, 0.001, 0.0003, 0.0001]], mode)
-
-# for mode in [math.max, math.mean]:
-#     plot_div(["new_try_low_31_rez", "new_try_low_61_rez", "new_try_low_31_rez"], mode)
-#     plot_div(["new_try_mid_31_rez", "new_try_mid_61_rez", "new_try_mid_121_rez"], mode)
-#     plot_div(["new_try_high_31_rez", "new_try_mid_61_rez", "new_try_mid_121_rez"], mode)
 
 # plot_div(["fully_not_working2___high_121_dt_0.0001"], math.mean, plot_div=False)
 # plot_div(["fully_not_working2___high_121_dt_0.0001"], math.max)
