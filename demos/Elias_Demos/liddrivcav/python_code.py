@@ -250,7 +250,8 @@ class TestRun:
         field.write(velocity, f"data/{self.name}/vel_{0}")
         field.write(pressure, f"data/{self.name}/press_{0}")
         print(f"timestep: {0} of {self.t_num}")
-        self.diver = math.jit_compile(field.divergence, "order, implicit, implicitness")
+        # self.diver = math.jit_compile(field.divergence, "order, implicit, implicitness")
+        self.diver = field.divergence
         div = self.diver(velocity, order=self.ord)
         div_mean = math.mean(math.abs(div.values)).numpy().max()
         print(f"div mean: ", div_mean)
@@ -275,11 +276,15 @@ class TestRun:
 
             if i % freq == 0:
                 print(f"timestep: {i} of {self.t_num}")
-                div = self.diver(velocity, order=self.ord)
-                div_mean = math.mean(math.abs(div.values))
-                print(f"div mean: ", div_mean)
-                div_max = math.max(math.abs(div.values))
-                print(f"div max: ", div_max)
+                # diver = math.jit_compile(field.divergence, "order, implicit, upwind, implicitness")
+                # div1 = diver(velocity, order=4)
+                div2 = field.divergence(velocity, order=4)
+                # print("jit comp mean diver diff:", math.mean(math.abs((div1 - div2).values)))
+                # print("jit comp max diver diff:", math.max(math.abs((div1 - div2).values)))
+                # print(f"jit div mean: ", math.mean(math.abs(div1.values)))
+                # print(f"jit div max: ", math.max(math.abs(div1.values)))
+                print(f"div mean: ", math.mean(math.abs(div2.values)))
+                print(f"div max: ", math.max(math.abs(div2.values)))
 
                 # vis.plot(velocity, pressure, title=f'vel and p after timestep {i}')
                 # vis.show()
@@ -519,26 +524,26 @@ eps = 1e-6
 
 
 
-# resols = [31, 61, 121]
-# re = 1000
-# # for ord in ['low', 'mid', 'high']:
-# for ord in ['mid']:
-#     for res in resols:
-#         test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
-#                            name=f"new_try_{ord}_{res}")
-#         test.run(t_num=300000, freq=1, jit_compile=False, eps=eps)
-#         test.draw_plots()
+resols = [31, 61, 121]
+re = 1000
+# for ord in ['low', 'mid', 'high']:
+for ord in ['mid']:
+    for res in resols:
+        test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
+                           name=f"phi3.0_{ord}_{res}")
+        test.run(t_num=300000, freq=1, jit_compile=False, eps=eps)
+        test.draw_plots()
 #         # test.print_fail_status()
 
 
-re = 1000
-res = 31
-for ord in ['mid']:
-    for dt in [0.0001, 0.003]:
-            test = TestRun(0, 'center', ord, res, None, 1 / re, dt,
-                               name=f"timestep_invest2_{ord}_{res}_dt_{dt}")
-            test.run(t_num=3000000, freq=1, jit_compile=False, eps=eps)
-            test.draw_plots()
-            # test.print_fail_status()
+# re = 1000
+# res = 31
+# for ord in ['high']:
+#     for dt in [0.003]:
+#             test = TestRun(0, 'center', ord, res, None, 1 / re, dt,
+#                                name=f"timestep_invest2_{ord}_{res}_dt_{dt}")
+#             test.run(t_num=3000000, freq=100, jit_compile=True, eps=eps)
+#             test.draw_plots()
+#             # test.print_fail_status()
 
 print('done')

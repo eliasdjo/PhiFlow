@@ -1,8 +1,11 @@
 from numbers import Number
 from typing import Callable, List, Tuple, Optional, Union, Sequence
 
-from phiml.math import Tensor, spatial, instance, tensor, channel, Shape, unstack, solve_linear, jit_compile_linear, shape, Solve, extrapolation, dual, wrap, rename_dims
-from phi import geom
+import numpy as np
+
+from phiml.math import Tensor, spatial, instance, tensor, channel, Shape, unstack, solve_linear, jit_compile_linear, \
+    shape, Solve, extrapolation, dual, wrap, rename_dims, factorial, concat, zeros, ones
+from phi import geom, math
 from phi import math
 from phi.geom import Box, Geometry, UniformGrid
 from phiml.math._shape import auto, DimFilter
@@ -12,7 +15,6 @@ from ._grid import CenteredGrid, StaggeredGrid, grid, unstack_staggered_tensor
 from ._point_cloud import PointCloud
 from ._resample import sample
 from ..math.extrapolation import Extrapolation, SYMMETRIC, REFLECT, ANTIREFLECT, ANTISYMMETRIC, combine_by_direction
-from demos.Elias_Demos.fd_coefficient_calc4 import get_coefficients
 
 
 def bake_extrapolation(grid: Field) -> Field:
@@ -473,12 +475,12 @@ def apply_stencils(field, field_extrapolation, gradient_extrapolation, field_dx,
             if gradient_extrapolation == math.extrapolation.NONE:
                 base_widths = (base_widths[0] + 1, base_widths[1] + 1)
                 std_widths = (1, 1)
-        elif at == 'faces':
+        elif at == 'face':
             base_widths = (base_widths[0], base_widths[1] - 1)
             border_valid = gradient_extrapolation.valid_outer_faces(dim)
             base_widths = (border_valid[0] + base_widths[0], border_valid[1] + base_widths[1])
         else:
-            raise ValueError(type)
+            raise ValueError(at)
 
         padded_component = math.pad(field,
                                     {dim_: base_widths if dim_ == dim else std_widths for dim_ in spatial_dims},
@@ -1218,6 +1220,55 @@ def mask(obj: Field or Geometry) -> Field:
     else:
         return Field(obj.elements, 1, math.extrapolation.remove_constant_offset(obj.extrapolation))
 
+
+def get_coefficients(offsets, derivative, lhs_offsets=[], boundary_condition=None):
+
+        def taylor_coeff(offset, n, deriv):
+            coeff = (offset) ** abs(n - deriv) / factorial(n - deriv)
+            res = math.where(n - deriv >= 0, coeff, 0)
+            return res
+
+        handle_zero = 0 in lhs_offsets
+        if handle_zero:
+            lhs_offsets = lhs_offsets.copy()
+            zero_index = lhs_offsets.index(0)
+            lhs_offsets.remove(0)
+
+        bc = boundary_condition is not None
+        if bc:
+            bc_offset, bc_deriv, bc_value = boundary_condition
+
+        node_number = len(offsets + lhs_offsets) + bc
+
+        one = math.concat([zeros(channel(x=derivative)), ones(channel(x=1)), zeros(channel(x=node_number - derivative - 1))],
+                     'x')
+        # ToDo ed switch zero(...) -> phiml.math.expand(0, ...)
+
+        arange = tensor(np.arange(node_number), channel('x'))
+        coeff = taylor_coeff(tensor(offsets, dual('x')), arange, 0)
+        coeff_lhs = taylor_coeff(tensor(lhs_offsets, dual('x')), arange, derivative)
+        mat = math.concat([coeff, coeff_lhs], '~x')
+
+        if bc:
+            coeff_bc = taylor_coeff(tensor([bc_offset], dual('x')), arange, bc_deriv)
+            mat = math.concat([mat, coeff_bc], '~x')
+
+        np_mat = mat.numpy('x, ~x')
+        np_b = one.numpy('x')
+        coeff = np.linalg.solve(np_mat, np_b)
+        ret = list(coeff)
+        values, lhs_values = ret[:len(offsets)], ret[len(offsets):len(offsets + lhs_offsets)]
+        lhs_values = [-v for v in lhs_values]
+
+        bc_offset = 0
+        if bc:
+            bc_offset = ret[-1] * bc_value
+
+        if handle_zero:
+            lhs_values.insert(zero_index, 1)
+
+        return values, lhs_values, bc_offset
+
 # def connect(obj: Field, connections: Tensor) -> Mesh:
 #     """
 #     Build a `Mesh` by connecting elements from a field.
@@ -1266,3 +1317,4 @@ def mask(obj: Field or Geometry) -> Field:
 #     dx = math.pairwise_distances(points, max_distance=max_distance, format=format)
 #     con = math.vec_length(dx) > 0
 #     return connect(obj, con)
+

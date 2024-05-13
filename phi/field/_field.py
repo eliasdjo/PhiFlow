@@ -261,7 +261,7 @@ class Field:
     @property
     def dx(self) -> Tensor:
         assert spatial(self._geometry), f"dx is only defined for elements with spatial dims but Field has elements {self._geometry.shape}"
-        return self.bounds.size / (self.resolution+1)
+        return self.bounds.size / (self.resolution)
 
     @property
     def cells(self):
