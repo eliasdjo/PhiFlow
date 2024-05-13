@@ -163,7 +163,7 @@ def make_incompressible(velocity: Field,
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
     pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
-    rank_deficient = pressure_extrapolation is extrapolation.ZERO_GRADIENT
+    rank_deficient = pressure_extrapolation is extrapolation.ZERO_GRADIENT and order > 2
     if rank_deficient:
         rank_fix = math.sqrt(1/div.dx.mean)
     else:

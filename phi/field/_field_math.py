@@ -114,32 +114,35 @@ def laplace(u: Field,
     # --- Grid ---
     laplace_dims = u.shape.only(axes).names
 
-    if u.vector.exists:
-        fields = [f for f in u.vector]
-    else:
-        fields = [u]
+    # if u.vector.exists:
+    #     fields = [f for f in u.vector]
+    # else:
+    #     fields = [u]
 
     laplace_ext = extrapolation.map(
         lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ConstantExtrapolation(-1) else ext,
         u.extrapolation)
 
     result = []
-    for f in fields:
-        result_components = [perform_finite_difference_operation(f.values, dim, 2, f.dx.vector[dim], f.extrapolation,
-                                                                 laplace_ext, 'center', order, implicit,
-                                                                 implicitness) for dim in laplace_dims]
-        if weights:
-            if channel(weights):
-                result_components = [c * weights[ax] for c, ax in zip(result_components, axes_names)]
-            else:
-                result_components = [c * weights for c in result_components]
+    # for f in fields:
+    result_components = [perform_finite_difference_operation(u.values, dim, 2, u.dx.vector[dim], u.extrapolation,
+                                                             laplace_ext, 'center', order, implicit,
+                                                             implicitness) for dim in laplace_dims]
+    if weights:
+        if channel(weights):
+            result_components = [c * weights[ax] for c, ax in zip(result_components, axes_names)]
+        else:
+            result_components = [c * weights for c in result_components]
 
-        result.append(sum(result_components))
+    result = sum(result_components)
 
-    if u.vector.exists:
-        result = math.stack(result, channel('vector'))
-    else:
-        result = result[0]
+    # if u.vector.exists:
+    #     if u.is_staggered:
+    #         result = math.stack(result, dual('~vector'))
+    #     else:
+    #         result = math.stack(result, channel('vector'))
+    # else:
+    #     result = result[0]
 
     return u.with_values(result).with_extrapolation(laplace_ext)
 
@@ -259,26 +262,17 @@ def get_stencils(order, differentiation_order, input_ext=None, implicit_order=0,
                  output_boundary_valid=False, left_border_one_sided=False):
 
     # input_boundary_valid = input_ext in [extrapolation.ZERO, extrapolation.ONE]
-    input_boundary_valid = False
-
+    input_boundary_valid = order == 2 and isinstance(input_ext, extrapolation.ConstantExtrapolation)
     bc_affin_lin, bc_deriv, bc_value = False, None, None
-    if input_ext == extrapolation.ZERO_GRADIENT:
-        bc_affin_lin = True
-        bc_deriv = 1
-        bc_value = 0
-    elif input_ext == extrapolation.ONE:
-        bc_affin_lin = True
-        bc_deriv = 0
-        bc_value = 1
-    elif input_ext == extrapolation.ZERO:
-        bc_affin_lin = True
-        bc_deriv = 0
-        bc_value = 0
-    elif input_ext == extrapolation.ConstantExtrapolation(-1):
-        bc_affin_lin = True
-        bc_deriv = 0
-        bc_value = -1
-
+    if order > 2:
+        if input_ext == extrapolation.ZERO_GRADIENT:
+            bc_affin_lin = True
+            bc_deriv = 1
+            bc_value = 0
+        elif isinstance(input_ext, extrapolation.ConstantExtrapolation):
+            bc_affin_lin = True
+            bc_deriv = 0
+            bc_value = input_ext.value
 
     extend = int(math.ceil((order - implicit_order) / 2)) + int((differentiation_order - 1) / 2)
     rhs_extend = int(math.ceil(implicit_order / 2))
@@ -321,7 +315,7 @@ def get_stencils(order, differentiation_order, input_ext=None, implicit_order=0,
                         n_shifts.insert(0, n_shifts[0] - 1)
                         bc = None
                     else:
-                        bc = coefficient_shifts[0] - 1, bc_deriv, bc_value
+                        bc = coefficient_shifts[0] - 0.5, bc_deriv, bc_value
 
                 n_values, n_values_rhs, n_affin_lin = get_coefficients(coefficient_shifts, differentiation_order,
                                                                        rhs_n_shifts, bc)
@@ -379,15 +373,11 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
     assert dim in field.shape.spatial.names, "given Tensor needs to have the indicated spatial dimension"
 
     leaf_exts = extrapolation.give_leaves(ext)
-    all_one_sided_exts = [extrapolation.ConstantExtrapolation(math.nan),
-                          extrapolation.ConstantExtrapolation(10000),
-                          extrapolation.ConstantExtrapolation(100),
-                          extrapolation.ZERO,
-                          extrapolation.ZERO_GRADIENT,
-                          extrapolation.SYMMETRIC, extrapolation.ONE, extrapolation.ConstantExtrapolation(-1),
-                          extrapolation.ConstantExtrapolation(10000000),
-                          ]
-    one_sided_exts = [ext for ext in leaf_exts if ext in all_one_sided_exts]
+
+    def is_one_sided(ext):
+        return (ext == extrapolation.ZERO_GRADIENT or isinstance(ext, extrapolation.ConstantExtrapolation)) and order > 2
+
+    one_sided_exts = [ext for ext in leaf_exts if is_one_sided(ext)]
 
     with math.NUMPY:
         base_values, base_shifts, base_rhs_values, base_rhs_shifts, base_affin_lin = get_stencils(order,
@@ -418,9 +408,9 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
 
     # boundary masks
     if at == 'center':
-        standard_mask = CenteredGrid(0, resolution=field.shape)  # ToDo ed is this okay with batch dimensions?
+        standard_mask = CenteredGrid(0, resolution=field.shape.non_batch)  # ToDo ed is this okay with batch dimensions?
     else:
-        standard_mask = CenteredGrid(0, resolution=field.shape + spatial(
+        standard_mask = CenteredGrid(0, resolution=field.shape.non_batch + spatial(
             **{dim: sum(output_ext.valid_outer_faces(dim)) - 1}))
 
     output_valid_ext = extrapolation.combine_sides(**{dim: tuple(
@@ -428,18 +418,12 @@ def perform_finite_difference_operation(field: Tensor, dim: str, differentiation
         output_ext.valid_outer_faces(dim)) for dim in field.shape.spatial.names})
     output_valid_mask = standard_mask.with_extrapolation(output_valid_ext)
 
-    def ext_list_to_map_func(target_extrapolations):
-        def f(ext: Extrapolation):
-            return extrapolation.ONE if ext in target_extrapolations else extrapolation.ZERO
-
-        return f
-
     ext_valid_masks = []
     for ex in one_sided_exts:
         mask_ext = extrapolation.map(lambda e: extrapolation.ONE if e == ex else extrapolation.ZERO, ext)
         ext_valid_masks.append(standard_mask.with_extrapolation(mask_ext))
 
-    one_sided_ext = extrapolation.map(ext_list_to_map_func(all_one_sided_exts), ext)
+    one_sided_ext = extrapolation.map(lambda e: extrapolation.ONE if is_one_sided(e) else extrapolation.ZERO, ext)
     one_sided_mask = standard_mask.with_extrapolation(one_sided_ext)
 
     result = apply_stencils(field, ext, output_ext, dx, base_values, base_shifts, at, dim,
