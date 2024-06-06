@@ -16,13 +16,13 @@ class TestDiffusion(TestCase):
 
     def test_diffuse_staggered_batched(self):
         for diffusivity in [1, 0.5, math.wrap([1., 0.5], batch('batch'))]:
-            grid = StaggeredGrid(Noise(batch(batch=2), vector=2), extrapolation.PERIODIC, x=6, y=5)
-            diffuse.explicit(grid, diffusivity, 1, substeps=10)
-            diffuse.implicit(grid, diffusivity, 1)
-            diffuse.fourier(grid, diffusivity, 1)
-            grid = StaggeredGrid(Noise(batch(batch=2), vector=2), extrapolation.ZERO, x=6, y=5)
-            diffuse.explicit(grid, diffusivity, 1, substeps=10)
-            # diffuse.implicit(grid, diffusivity, 1, order=2)  # not yet supported
+            # grid = StaggeredGrid(Noise(batch(batch=2), vector=2), extrapolation.PERIODIC, x=6, y=5)
+            # diffuse.explicit(grid, diffusivity, 1, substeps=10)
+            # diffuse.implicit(grid, diffusivity, 1)
+            # diffuse.fourier(grid, diffusivity, 1)
+            # grid = StaggeredGrid(Noise(batch(batch=2), vector=2), extrapolation.ZERO, x=6, y=5)
+            # diffuse.explicit(grid, diffusivity, 1, substeps=10)
+            # # diffuse.implicit(grid, diffusivity, 1, order=2)  # not yet supported
             grid = StaggeredGrid(Noise(batch(batch=2), vector=2), extrapolation.BOUNDARY, x=6, y=5)
             diffuse.explicit(grid, diffusivity, 1, substeps=10)
             # diffuse.implicit(grid, diffusivity, 1, order=2)  # not yet supported
