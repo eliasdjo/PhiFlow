@@ -34,9 +34,9 @@ def bake_extrapolation(grid: Field) -> Field:
         padded = []
         for dim in grid.vector.item_names:
             lower, upper = grid.extrapolation.valid_outer_faces(dim)
-            value = grid.values.vector.dual[dim]
+            value = grid.vector[dim].values
             padded.append(math.pad(value, {dim: (0 if lower else 1, 0 if upper else 1)}, grid.extrapolation[{'vector': dim}], bounds=grid.bounds))
-        return StaggeredGrid(math.stack(padded, grid.shape['vector']), bounds=grid.bounds, extrapolation=math.extrapolation.NONE)
+        return StaggeredGrid(math.stack(padded, dual(vector=grid.shape.spatial)), bounds=grid.bounds, extrapolation=math.extrapolation.NONE)
     elif grid.is_grid:
         return pad(grid, 1).with_extrapolation(math.extrapolation.NONE)
     else:
@@ -198,6 +198,8 @@ def spatial_gradient(field: Field,
         boundary = gradient_extrapolation
     if boundary is None:
         boundary = field.extrapolation.spatial_gradient()
+    if gradient_extrapolation is None:
+        gradient_extrapolation = boundary
     if field.is_mesh and at == 'center':
         assert stack_dim not in field.shape, f"Gradient dimension is already part of field {field.shape}. Please use a different dimension"
         boundary = boundary or field.boundary.spatial_gradient()
@@ -242,13 +244,13 @@ def spatial_gradient(field: Field,
 
 
     if order == 2:
-        if type == CenteredGrid:
+        if at == 'center':
             values = math.spatial_gradient(field.values, field.dx.vector.as_channel(name=stack_dim.name),
                                            difference='central', padding=field.extrapolation, stack_dim=stack_dim)
-            return CenteredGrid(values, bounds=field.bounds, extrapolation=extrapolation)
-        elif type == StaggeredGrid:
+            return CenteredGrid(values, bounds=field.bounds, extrapolation=gradient_extrapolation)
+        elif at == 'face':
             assert stack_dim.name == 'vector'
-            return stagger(field, lambda lower, upper: (upper - lower) / field.dx, extrapolation)
+            return stagger(field, lambda lower, upper: (upper - lower) / field.dx.vector.as_dual(), gradient_extrapolation)
 
 
     result_components = [
@@ -660,7 +662,7 @@ def stagger(field: Field,
         all_upper = math.stack(all_upper, dual(vector=dims))
         all_lower = math.stack(all_lower, dual(vector=dims))
         values = face_function(all_lower, all_upper)
-        result = Field(field.geometry, values, extrapolation)
+        result = StaggeredGrid(values, bounds=field.bounds, extrapolation=extrapolation)
         assert result.resolution == field.resolution
         return result
     else:
@@ -702,12 +704,12 @@ def divergence(field: Field, order=2, implicit: Solve = None, upwind: Field = No
             field = bake_extrapolation(field)
             components = []
             for dim in field.shape.spatial.names:
-                div_dim = math.spatial_gradient(field.values.vector[dim], field.dx, 'forward', None, dims=dim,
+                div_dim = math.spatial_gradient(field.vector[dim].values, field.dx, 'forward', None, dims=dim,
                                                 stack_dim=None)
                 components.append(div_dim)
             data = math.sum(components, dim='0')
             return CenteredGrid(data, bounds=field.bounds, extrapolation=field.extrapolation.spatial_gradient())
-        else:
+        elif field.is_centered:
             left, right = shift(field, (-1, 1), stack_dim=batch('div_'))
             grad = (right - left) / (field.dx * 2)
             components = [grad.vector[i].div_[i] for i in range(grad.div_.size)]
