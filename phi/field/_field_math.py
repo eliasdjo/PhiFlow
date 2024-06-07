@@ -112,10 +112,10 @@ def laplace(u: Field,
         return Field(u.mesh, result, u.boundary - u.boundary)
     
     # --- Grid ---
-    if order == 2:
-        result = u._op1(
-            lambda tensor: math.laplace(tensor, dx=u.dx, padding=u.extrapolation, dims=axes, weights=weights))
-        return result
+    # if order == 2:
+    #     result = u._op1(
+    #         lambda tensor: math.laplace(tensor, dx=u.dx, padding=u.extrapolation, dims=axes, weights=weights))
+    #     return result
 
     laplace_dims = u.shape.only(axes).names
 
