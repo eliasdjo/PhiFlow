@@ -112,10 +112,32 @@ def laplace(u: Field,
         return Field(u.mesh, result, u.boundary - u.boundary)
     
     # --- Grid ---
-    # if order == 2:
-    #     result = u._op1(
-    #         lambda tensor: math.laplace(tensor, dx=u.dx, padding=u.extrapolation, dims=axes, weights=weights))
-    #     return result
+    laplace_ext = extrapolation.map(
+        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ConstantExtrapolation(-1) else ext,
+        u.extrapolation)
+
+    if order == 2:
+        values, needed_shifts = [1, -2, 1], (-1, 0, 1)
+        base_widths = (abs(min(needed_shifts)), max(needed_shifts))
+        padded_components = [pad(u, {dim: base_widths}) for dim in axes_names]
+        shifted_components = [shift(padded_component, needed_shifts, None, pad=False, dims=dim) for
+                              padded_component, dim in zip(padded_components, axes_names)]
+        result_components = [
+            sum([value * shift_ for value, shift_ in zip(values, shifted_component)]) / u.dx.vector[dim] ** 2 for
+            shifted_component, dim in zip(shifted_components, axes_names)]
+        result_components = [component.with_bounds(u.bounds) for component in result_components]
+        if weights is not None and channel(weights):
+            result_components = [c * weights[ax] for c, ax in zip(result_components, axes_names)]
+        result_val = math.sum([f.values for f in result_components], '0')
+        if weights is not None and channel(weights).is_empty:
+            result_val *= weights
+
+        def _ex_map_f(ext_dict: dict):
+            def f(ext: Extrapolation):
+                return ext_dict[ext.__repr__()] if ext.__repr__() in ext_dict else ext
+
+            return f
+        return Field(u.geometry, result_val, u.extrapolation)
 
     laplace_dims = u.shape.only(axes).names
 
@@ -124,9 +146,6 @@ def laplace(u: Field,
     else:
         fields = [u]
 
-    laplace_ext = extrapolation.map(
-        lambda ext: extrapolation.ZERO if ext == extrapolation.ONE or ext == extrapolation.ZERO_GRADIENT or ext == extrapolation.ConstantExtrapolation(-1) else ext,
-        u.extrapolation)
 
     result = []
     for f in fields:
