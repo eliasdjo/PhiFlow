@@ -124,7 +124,7 @@ def laplace(u: Field,
     result = []
     for f in fields:
         if order == 2:
-            result.append(math.laplace(f.values, dx=f.dx, padding=u.extrapolation, dims=axes, weights=weights))
+            result.append(math.laplace(f.values, dx=f.dx, padding=f.extrapolation, dims=axes, weights=weights))
         else:
             result_components = [perform_finite_difference_operation(f.values, dim, 2, f.dx.vector[dim], f.extrapolation,
                                                                          laplace_ext, 'center', order, implicit,
