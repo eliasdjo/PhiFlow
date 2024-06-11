@@ -91,9 +91,7 @@ def _get_obstacles_for(obstacles, space: Field):
     return obstacles
 
 def make_incompressible_higher_order(velocity: Field,
-                        obstacles: Obstacle or Geometry or tuple or list = (),
                         solve: Solve = Solve(),
-                        active: CenteredGrid = None,
                         order: int = 2) -> Tuple[Field, Field]:
 
     div = divergence(velocity, order=order)
@@ -107,11 +105,16 @@ def make_incompressible_higher_order(velocity: Field,
     else:
         rank_fix = 0
 
-    pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, fix_rank_deficiency=rank_fix)
+    pressure = math.solve_linear(masked_laplace_higher_order, div, solve, order=order, fix_rank_deficiency=rank_fix)
     grad_pressure = field.spatial_gradient(pressure, at=velocity.sampled_at, order=order)
     velocity = velocity - grad_pressure
 
     return velocity, pressure
+
+@math.jit_compile_linear(auxiliary_args='order', forget_traces=True)  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
+def masked_laplace_higher_order(pressure: CenteredGrid, order=2) -> CenteredGrid:
+    laplace = field.laplace(pressure, order=order)
+    return laplace
 
 
 def make_incompressible(velocity: Field,
@@ -141,12 +144,11 @@ def make_incompressible(velocity: Field,
         pressure: solved pressure field, `CenteredGrid`
     """
     obstacles = _get_obstacles_for(obstacles, velocity)
-    assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"#
+    assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"
 
     if order != 2:
-        return make_incompressible_higher_order(velocity, None, solve, None, order)#
+        return make_incompressible_higher_order(velocity, solve, order)
 
-    div = divergence(velocity, order=order)
     input_velocity = velocity
     # --- Create masks ---
     accessible_extrapolation = _accessible_extrapolation(input_velocity.extrapolation)
@@ -164,29 +166,22 @@ def make_incompressible(velocity: Field,
     assert not channel(div), f"Divergence must not have any channel dimensions. This is likely caused by an improper velocity field v={input_velocity}"
     if not all_active:  # NaN in velocity allowed
         div = field.where(field.is_finite(div), div, 0)
-    pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
-    rank_deficient = pressure_extrapolation is extrapolation.ZERO_GRADIENT
-    if rank_deficient and order > 2:
-        rank_fix = math.sqrt(1/div.dx.mean)
-    else:
-        rank_fix = 0
-    if not input_velocity.extrapolation.is_flexible and all_active and order == 2:
+    if not input_velocity.extrapolation.is_flexible and all_active:
         solve = solve.with_preprocessing(_balance_divergence, active)
     if solve.x0 is None:
         pressure_extrapolation = _pressure_extrapolation(input_velocity.extrapolation)
         solve = copy_with(solve, x0=CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution, convert=False))
     if (batch(math.merge_shapes(*obstacles)) & batch(velocity.dx)).without(batch(solve.x0.values)):  # The initial pressure guess must contain all batch dimensions
         solve = copy_with(solve, x0=solve.x0.with_values(expand(solve.x0.values, batch(math.merge_shapes(*obstacles)) & batch(velocity.dx))))
-
-    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active, order=order, fix_rank_deficiency=rank_fix)
+    pressure = math.solve_linear(masked_laplace, div, solve, hard_bcs, active)
     # --- Subtract grad p ---
-    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, dims=velocity.vector.item_names, at=velocity.sampled_at, order=order) * hard_bcs
+    grad_pressure = field.spatial_gradient(pressure, input_velocity.extrapolation, dims=velocity.vector.item_names, at=velocity.sampled_at) * hard_bcs
     velocity = (velocity - grad_pressure).with_extrapolation(input_velocity.extrapolation)
     return velocity, pressure
 
 
 @math.jit_compile_linear(auxiliary_args='hard_bcs,active,order,implicit', forget_traces=True)  # jit compilation is required for boundary conditions that add a constant offset solving Ax + b = y
-def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid, order=2, implicit: Solve = None) -> CenteredGrid:
+def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid) -> CenteredGrid:
     """
     Computes the laplace of `pressure` in the presence of obstacles.
 
@@ -201,20 +196,17 @@ def masked_laplace(pressure: CenteredGrid, hard_bcs: Grid, active: CenteredGrid,
         order: Spatial order of accuracy.
             Higher orders entail larger stencils and more computation time but result in more accurate results assuming a large enough resolution.
             Supported: 2 explicit, 4 explicit, 6 implicit (inherited from `phi.field.laplace()`).
-        implicit: When a `Solve` object is passed, performs an implicit operation with the specified solver and tolerances.
-            Otherwise, an explicit stencil is used.
 
     Returns:
         `CenteredGrid`
     """
-    if order == 2 and not implicit:
-        grad = spatial_gradient(pressure, hard_bcs.extrapolation, dims=hard_bcs.vector.item_names, at='face' if hard_bcs.is_staggered else 'center')
-        valid_grad = grad * hard_bcs
-        valid_grad = valid_grad.with_extrapolation(extrapolation.remove_constant_offset(valid_grad.extrapolation))
-        div = divergence(valid_grad)
-        laplace = where(active, div, pressure)
-    else:
-        laplace = field.laplace(pressure, order=order, implicit=implicit)
+
+    grad = spatial_gradient(pressure, hard_bcs.extrapolation, dims=hard_bcs.vector.item_names,
+                            at='face' if hard_bcs.is_staggered else 'center')
+    valid_grad = grad * hard_bcs
+    valid_grad = valid_grad.with_extrapolation(extrapolation.remove_constant_offset(valid_grad.extrapolation))
+    div = divergence(valid_grad)
+    laplace = where(active, div, pressure)
     return laplace
 
 
