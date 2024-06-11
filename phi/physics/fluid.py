@@ -146,7 +146,8 @@ def make_incompressible(velocity: Field,
     obstacles = _get_obstacles_for(obstacles, velocity)
     assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"
 
-    if order != 2:
+    # if order != 2:
+    if True:
         return make_incompressible_higher_order(velocity, solve, order)
 
     input_velocity = velocity
