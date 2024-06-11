@@ -111,7 +111,7 @@ def differential(u: Field,
         if order == 4:
             amounts = [grad * vel.at(grad, order=2) for grad, vel in zip(grad_grid.grad_dim, velocity.vector)]  # ToDo resampling does not yet support order=4
         else:
-            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, velocity.vector)]
+            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.grad_dim, velocity.vector)]
         amount = sum(amounts)
         return u.with_values(- amount)
     elif u.is_grid and u.is_centered:

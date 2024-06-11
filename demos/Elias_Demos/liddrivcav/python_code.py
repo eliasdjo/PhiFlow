@@ -112,7 +112,10 @@ class TestRun:
             velocity = field.read(f"data/{post_name}/vel_{t_num_-freq_}.npz")
             pressure = field.read(f"data/{post_name}/press_{t_num_-freq_}.npz")
         else:
-            velocity = CenteredGrid(tensor([0, 0], channel(vector='x, y')), **DOMAIN_V)
+            if self.at == 'face':
+                velocity = StaggeredGrid(tensor([0, 0], channel(vector='x, y')), **DOMAIN_V)
+            elif self.at == 'center':
+                velocity = CenteredGrid(tensor([0, 0], channel(vector='x, y')), **DOMAIN_V)
             pressure = CenteredGrid(0, **DOMAIN_P)
 
 
@@ -223,7 +226,8 @@ re = 1000
 
 for ord in ords:
     for res in resols:
-        test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
+        at = 'face' if ord == 'low_phi' else 'center'
+        test = TestRun(0, at, ord, res, None, 1 / re, 0.001,
                            name=f"phi3.0_finale_{ord}_{res}")
         test.run(t_num=300000, freq=1, jit_compile=True, eps=eps)
         test.draw_plots()
