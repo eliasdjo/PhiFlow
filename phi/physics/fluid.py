@@ -90,15 +90,14 @@ def _get_obstacles_for(obstacles, space: Field):
         assert obstacle.geometry.vector.item_names == space.vector.item_names, f"Obstacles must live in the same physical space as the velocity field {space.vector.item_names} but got {type(obstacle.geometry).__name__} obstacle with order {obstacle.geometry.vector.item_names}"
     return obstacles
 
-def make_incompressible2(velocity: Field,
+def make_incompressible_higher_order(velocity: Field,
                         obstacles: Obstacle or Geometry or tuple or list = (),
                         solve: Solve = Solve(),
                         active: CenteredGrid = None,
                         order: int = 2) -> Tuple[Field, Field]:
+
     div = divergence(velocity, order=order)
-
     pressure_extrapolation = _pressure_extrapolation(velocity.extrapolation)
-
     dummy = CenteredGrid(0, pressure_extrapolation, div.bounds, div.resolution)
     solve = copy_with(solve, x0=dummy)
 
@@ -109,9 +108,7 @@ def make_incompressible2(velocity: Field,
         rank_fix = 0
 
     pressure = math.solve_linear(masked_laplace, div, solve, math.tensor(0), math.tensor(0), order=order, fix_rank_deficiency=rank_fix)
-
     grad_pressure = field.spatial_gradient(pressure, at=velocity.sampled_at, order=order)
-
     velocity = velocity - grad_pressure
 
     return velocity, pressure
@@ -144,7 +141,12 @@ def make_incompressible(velocity: Field,
         pressure: solved pressure field, `CenteredGrid`
     """
     obstacles = _get_obstacles_for(obstacles, velocity)
-    assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"
+    assert order == 2 or len(obstacles) == 0, f"obstacles are not supported with higher order schemes"#
+
+    if order != 2:
+        return make_incompressible_higher_order(velocity, None, solve, None, order)#
+
+    div = divergence(velocity, order=order)
     input_velocity = velocity
     # --- Create masks ---
     accessible_extrapolation = _accessible_extrapolation(input_velocity.extrapolation)

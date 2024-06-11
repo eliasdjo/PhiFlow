@@ -94,7 +94,7 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=6)
+            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=6)
         p += delta_p / dt_
         return v, p
 
@@ -110,7 +110,7 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=4)
+            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=4)
         p += delta_p / dt_
         return v, p
 
@@ -126,7 +126,7 @@ class TestRun:
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible2(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=20)
+            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=20)
         p += delta_p / dt_
         return v, p
 
@@ -183,7 +183,7 @@ class TestRun:
 
 
         # for i in range(3):
-        #     velocity, pressure = fluid.make_incompressible2(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
+        #     velocity, pressure = fluid.make_incompressible(velocity, order=4, solve=math.Solve('biCG-stab(2)', 1e-7, 1e-7))
         #
         #     vis.plot(velocity, pressure, title=f'vel and press {i}')
         #     vis.show()

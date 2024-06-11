@@ -109,9 +109,9 @@ def differential(u: Field,
         grad_list = [spatial_gradient(field_component, stack_dim=channel('grad_dim'), order=order, implicit=implicit) for field_component in u.vector]
         grad_grid = u.with_values(math.stack([component.values for component in grad_list], channel(velocity).as_dual()))
         if order == 4:
-            amounts = [grad * vel.at(grad, order=2) for grad, vel in zip(grad_grid.grad_dim, u.vector)]  # ToDo resampling does not yet support order=4
+            amounts = [grad * vel.at(grad, order=2) for grad, vel in zip(grad_grid.grad_dim, velocity.vector)]  # ToDo resampling does not yet support order=4
         else:
-            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, u.vector)]
+            amounts = [grad * vel.at(grad, order=order, implicit=implicit) for grad, vel in zip(grad_grid.gradient, velocity.vector)]
         amount = sum(amounts)
         return u.with_values(- amount)
     elif u.is_grid and u.is_centered:

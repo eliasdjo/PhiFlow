@@ -2,7 +2,6 @@ from numbers import Number
 from typing import Callable, List, Tuple, Optional, Union, Sequence
 
 import numpy as np
-
 from phiml.math import Tensor, spatial, instance, tensor, channel, batch, Shape, unstack, solve_linear, jit_compile_linear, \
     shape, Solve, extrapolation, dual, wrap, rename_dims, factorial, concat, zeros, ones
 from phi import geom, math
