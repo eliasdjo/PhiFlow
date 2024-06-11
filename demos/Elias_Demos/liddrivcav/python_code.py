@@ -218,10 +218,10 @@ class TestRun:
 
 
 eps = 1e-6
-# resols = [31, 61, 121]
-resols = [31]
-# ords = ['low_phi', 'mid', 'high']
-ords = ['low_phi']
+resols = [31, 61, 121]
+# resols = [31]
+ords = ['low_phi', 'low', 'mid', 'high']
+# ords = ['low_phi']
 re = 1000
 
 for ord in ords:
