@@ -215,17 +215,17 @@ class TestRun:
 
 
 eps = 1e-6
-resols = [31, 61, 121]
-# resols = [31]
-ords = ['low', 'mid', 'high']
-# ords = ['high']
+# resols = [31, 61, 121]
+resols = [31]
+# ords = ['low_phi', 'mid', 'high']
+ords = ['low_phi']
 re = 1000
 
 for ord in ords:
     for res in resols:
         test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
                            name=f"phi3.0_finale_{ord}_{res}")
-        test.run(t_num=300000, freq=100, jit_compile=True, eps=eps)
+        test.run(t_num=300000, freq=1, jit_compile=True, eps=eps)
         test.draw_plots()
 
 
