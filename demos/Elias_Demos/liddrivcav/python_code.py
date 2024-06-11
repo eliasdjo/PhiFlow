@@ -13,24 +13,14 @@ class TestRun:
 
     def __init__(self, tges, at, order, xynum, p_grad, vis, dt, name='data'):
 
-        if order == 'phi':
-            self.adv_diff_press = self.adp_phi_flow
-            self.pressure_treatment = self.pt_phi_flow
+        if order == 'low_phi':
+            self.ord = 2
         elif order == 'low':
-            self.adv_diff_press = self.adp_low_ord
-            self.pressure_treatment = self.pt_low_ord
             self.ord = 20
         elif order == 'mid':
-            self.adv_diff_press = self.adp_mid_ord
-            self.pressure_treatment = self.pt_mid_ord
             self.ord = 4
         if order == 'high':
-            self.adv_diff_press = self.adp_high_ord
-            self.pressure_treatment = self.pt_high_ord
             self.ord = 6
-        if order == 'high_impl':
-            self.adv_diff_press = self.adp_high_ord_impl
-            self.pressure_treatment = self.pt_high_ord_impl
 
         self.order = order
         self.name = name
@@ -68,67 +58,23 @@ class TestRun:
 
         return v_p1, p_p1
 
-    # def adp_high_ord_impl(self, v, p):
-    #     adv_diff_press = (advect.finite_difference(v, v, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
-    #     adv_diff_press += (diffuse.finite_difference(v, self.vis, order=6, implicit=Solve('scipy-GMres', 1e-12, 1e-12)))
-    #     adv_diff_press -= field.spatial_gradient(p, at=self.at, order=6, gradient_extrapolation=extrapolation.ZERO)
-    #     return adv_diff_press.with_extrapolation(0)
-    #
-    # def pt_high_ord_impl(self, v, p, dt_=None):
-    #     if dt_ is None:
-    #         dt_ = self.dt
-    #     v, delta_p = \
-    #         fluid.make_incompressible(v, order=6,
-    #                                   solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10))
-    #     p += delta_p / dt_
-    #     return v, p
 
-    def adp_high_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, order=6))
-        diff = (diffuse.finite_difference(v, self.vis, order=6))
+    def adv_diff_press(self, v, p):
+        adv_diff_press = (advect.finite_difference(v, v, order=self.ord))
+        diff = (diffuse.finite_difference(v, self.vis, order=self.ord))
         adv_diff_press += diff
-        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=6, gradient_extrapolation=extrapolation.ZERO)
-        return adv_diff_press
-
-    def pt_high_ord(self, v, p, dt_=None):
-        if dt_ is None:
-            dt_ = self.dt
-        v, delta_p = \
-            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=6)
-        p += delta_p / dt_
-        return v, p
-
-
-    def adp_mid_ord(self, v, p):
-        adv_diff_press = (advect.finite_difference(v, v, order=4))
-        diff = (diffuse.finite_difference(v, self.vis, order=4))
-        adv_diff_press += diff
-        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=4, gradient_extrapolation=extrapolation.ZERO)
+        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=self.ord, gradient_extrapolation=extrapolation.ZERO)
         return adv_diff_press.with_extrapolation(0)
 
-    def pt_mid_ord(self, v, p, dt_=None):
+
+    def pressure_treatment(self, v, p, dt_=None):
         if dt_ is None:
             dt_ = self.dt
         v, delta_p = \
-            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=4)
+            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=self.ord)
         p += delta_p / dt_
         return v, p
 
-
-    def adp_low_ord(self, v, p):
-        adv_diff_press = advect.finite_difference(v, v, order=20)
-        diff = (diffuse.finite_difference(v, self.vis, order=20))
-        adv_diff_press += diff
-        adv_diff_press -= field.spatial_gradient(p, at=self.at, order=20, gradient_extrapolation=extrapolation.ZERO)
-        return adv_diff_press.with_extrapolation(0)
-
-    def pt_low_ord(self, v, p, dt_=None):
-        if dt_ is None:
-            dt_ = self.dt
-        v, delta_p = \
-            fluid.make_incompressible(v, solve=math.Solve('biCG-stab(2)', 1e-10, 1e-10), order=20)
-        p += delta_p / dt_
-        return v, p
 
     def run(self, jit_compile=True, t_num=0, freq=100, eps=0, recap=False):
         print(f"run {self.name}:")
@@ -269,16 +215,16 @@ class TestRun:
 
 
 eps = 1e-6
-# resols = [31, 61, 121]
-resols = [31]
-# ords = ['low', 'mid', 'high']
-ords = ['low']
+resols = [31, 61, 121]
+# resols = [31]
+ords = ['low', 'mid', 'high']
+# ords = ['high']
 re = 1000
 
 for ord in ords:
     for res in resols:
         test = TestRun(0, 'center', ord, res, None, 1 / re, 0.001,
-                           name=f"phi3.0_final_{ord}_{res}")
+                           name=f"phi3.0_finale_{ord}_{res}")
         test.run(t_num=300000, freq=100, jit_compile=True, eps=eps)
         test.draw_plots()
 

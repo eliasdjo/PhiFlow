@@ -73,8 +73,8 @@ def plot_div(names, mode=math.max):
 
 # for mode in [['x', 'y'], ['y', 'x']]:
 for mode in [['y', 'x']]:
-    for ord in ['low', 'mid', 'high']:
-        draw_benchm_comp([f"phi3.0_final_{ord}_{res}" for res in [31, 61, 121]], mode)
+    for ord in ['low', 'mid']:
+        draw_benchm_comp([f"phi3.0_final_{ord}_{res}" for res in [31, 61, 121]] + ["phi3.0_final_high_31"], mode)
 
 
 # # for mode in [['x', 'y'], ['y', 'x']]:
